@@ -2833,7 +2833,7 @@ def get_session_details(user_id):
 
 # Root route - redirect to login
 @app.route('/')
-def index():
+def home():
     """Homepage - redirect to login if not authenticated, otherwise to manage users"""
     if 'user_id' in session and 'jwt_token' in session:
         # User is logged in, redirect to manage users
