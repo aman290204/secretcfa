@@ -2917,8 +2917,8 @@ def login():
     
     print(f"✅ User '{user_id}' logged in successfully")
     
-    # Redirect to manage users page (admin panel)
-    return redirect(url_for('manage_users'))
+    # Redirect to menu for all users
+    return redirect(url_for('menu'))
 
 @app.route('/logout')
 def logout():
