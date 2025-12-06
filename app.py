@@ -1415,7 +1415,6 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
         </div>
         <div class="card-meta">
           <span>📝 {{ file.questions }} questions</span>
-          <span>💾 {{ file.size }}</span>
         </div>
         <div class="card-actions">
           <a href="/{{ file.display_name }}" class="btn btn-primary">Start Quiz</a>
