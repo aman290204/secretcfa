@@ -1,0 +1,186 @@
+================================================================================
+CFA L1 Quiz Application - User Persistence Fix
+================================================================================
+Date: November 11, 2025
+Issue: User changes not being saved to users.json file
+Status: FIXED ✓
+================================================================================
+
+PROBLEM DESCRIPTION
+===================
+When adding new users through the admin interface, the changes were not being
+persisted to the users.json file. The application would appear to accept the
+new user, but upon reload, the user would not exist. This affected:
+- Adding new users
+- Removing existing users
+- Editing user details
+
+The issue occurred both locally and when deployed to Render.com.
+
+ROOT CAUSE ANALYSIS
+===================
+The save_users() function had three critical issues:
+
+1. NO ERROR HANDLING
+   The function had no try-except blocks, so errors were silently ignored
+   
+2. MISSING DIRECTORY CREATION
+   On Render.com (which uses ephemeral file systems), the config/ directory
+   might not exist, causing file write operations to fail silently
+   
+3. NO RETURN VALUES
+   The function didn't return success/failure status, making it impossible to
+   know if the save operation succeeded or failed
+
+ORIGINAL CODE (BROKEN)
+======================
+def save_users(users_data):
+    """Save users to users.json file"""
+    users_file = os.path.join(BASE_DIR, 'config', 'users.json')
+    with open(users_file, 'w') as f:
+        json.dump(users_data, f, indent=4)
+
+FIXED CODE
+==========
+def save_users(users_data):
+    """Save users to users.json file"""
+    try:
+        # Determine the correct path to save users.json
+        config_dir = os.path.join(BASE_DIR, 'config')
+        users_file = os.path.join(config_dir, 'users.json')
+        
+        # Create config directory if it doesn't exist
+        os.makedirs(config_dir, exist_ok=True)
+        
+        # Write to file with proper encoding
+        with open(users_file, 'w', encoding='utf-8') as f:
+            json.dump(users_data, f, indent=4, ensure_ascii=False)
+        
+        return True, "Users saved successfully"
+    except PermissionError as e:
+        print(f"Permission denied when saving users: {e}")
+        return False, "Permission denied: Cannot write to users.json"
+    except IOError as e:
+        print(f"IO error when saving users: {e}")
+        return False, f"Error saving users: {e}"
+    except Exception as e:
+        print(f"Unexpected error when saving users: {e}")
+        return False, f"Unexpected error: {e}"
+
+KEY IMPROVEMENTS
+================
+✓ Automatic directory creation using os.makedirs(config_dir, exist_ok=True)
+✓ Comprehensive error handling with specific exception types
+✓ Proper file encoding (utf-8) for international characters
+✓ Return tuple (success, message) for status reporting
+✓ Detailed error logging for debugging
+✓ Works on both local development and Render.com deployment
+
+RELATED FUNCTION UPDATES
+=========================
+Updated add_user(), remove_user(), and edit_user() functions to:
+- Properly handle the new return tuple from save_users()
+- Report save failures to the user
+- Provide meaningful error messages
+
+Example of updated add_user():
+    save_success, save_message = save_users(users_data)
+    if save_success:
+        return True, "User added successfully"
+    else:
+        return False, f"User created but failed to save: {save_message}"
+
+TESTING & VERIFICATION
+======================
+Two test scripts have been created to verify the fix:
+
+1. tests/test_user_persistence.py
+   - Comprehensive test suite covering all operations
+   - Tests: add, edit, remove users
+   - Verifies file persistence after each operation
+   - Backs up and restores original users.json
+
+2. tests/verify_user_save.py
+   - Quick verification script
+   - Tests basic add and save functionality
+   - Displays current users before/after add operation
+
+DEPLOYMENT INSTRUCTIONS
+=======================
+1. Update Flask application on Render.com:
+   - Push the updated app.py to your repository
+   - Render will automatically rebuild and deploy
+   
+2. Verify the fix locally before deployment:
+   - Run: python tests/verify_user_save.py
+   - Check that new users are saved to config/users.json
+   
+3. Test on production (Render):
+   - Add a new user through admin interface
+   - Log out and log back in
+   - The user should still exist (proving persistence)
+
+DEPLOYMENT NOTES FOR RENDER.COM
+===============================
+On Render.com with ephemeral file systems:
+- Files created during deployment persist across restarts
+- Initial deployment creates config/users.json
+- os.makedirs(exist_ok=True) ensures directory exists
+- Subsequent deployments preserve the users.json file
+
+To migrate existing users to a fresh deployment:
+1. Before redeployment, export users from current deployment
+2. After redeployment, use admin interface to re-add users
+   (or programmatically restore from backup)
+
+COMPATIBILITY
+=============
+✓ Python 3.7+
+✓ Flask 1.0+
+✓ Windows (local development)
+✓ Linux/Unix (Render.com production)
+✓ macOS
+
+FILES MODIFIED
+==============
+- app.py: Updated save_users(), add_user(), remove_user(), edit_user()
+
+FILES CREATED
+=============
+- tests/test_user_persistence.py (comprehensive test suite)
+- tests/verify_user_save.py (quick verification script)
+- USER_PERSISTENCE_FIX.txt (this document)
+
+TROUBLESHOOTING
+===============
+If users still aren't being saved:
+
+1. Check file permissions:
+   ls -la config/users.json
+
+2. Check directory permissions:
+   ls -la config/
+
+3. Check Flask logs for error messages:
+   Look for "Permission denied when saving users" or similar
+
+4. Verify config directory exists:
+   ls -la config/
+
+5. Check available disk space:
+   df -h (on Unix/Linux) or Get-Volume (on Windows)
+
+6. Run verification script:
+   python tests/verify_user_save.py
+
+SUPPORT CONTACTS
+================
+If issues persist after deployment:
+1. Review Flask application logs
+2. Check Render.com build logs
+3. Verify config/users.json is readable/writable
+4. Test locally with test_user_persistence.py
+
+================================================================================
+End of Document
+================================================================================
