@@ -3694,6 +3694,14 @@ if __name__ == "__main__":
         print("⚠️  WARNING: Redis not connected!")
         print("⚠️  Set REDIS_URL environment variable to enable session management")
         print("⚠️  Single-session authentication will not work until Redis is configured")
+    else:
+        # Migrate users from JSON to Redis (one-time migration on startup)
+        users_json_path = os.path.join(BASE_DIR, 'config', 'users.json')
+        migrated_count = db.migrate_users_from_json(users_json_path)
+        if migrated_count > 0:
+            print(f"📦 Migrated {migrated_count} users from JSON to Redis")
+        else:
+            print("✅ User credentials loaded from Redis")
     
     print("=" * 50)
     
