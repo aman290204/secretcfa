@@ -1079,19 +1079,8 @@ def menu():
                         'is_mock': 'Mock' in filename,
                         'is_module': filename.startswith('Module')
                     })
-                except Exception as e:
-                    print(f"⚠️ Error loading file '{filename}' for user '{session.get('user_id')}': {e}")
-                    import traceback
-                    traceback.print_exc()
+                except Exception:
                     pass
-    
-    # Debug output
-    print(f"🔍 DEBUG - User: {session.get('user_id')}, Role: {session.get('user_role')}, Files found: {len(files)}")
-    print(f"🔍 DATA_FOLDER: {DATA_FOLDER}, exists: {os.path.exists(DATA_FOLDER)}")
-    if os.path.exists(DATA_FOLDER):
-        all_files = os.listdir(DATA_FOLDER)
-        json_files = [f for f in all_files if f.endswith('.json')]
-        print(f"🔍 JSON files in folder: {len(json_files)}")
     
     # Get sort type from request
     sort_type = request.args.get('sort', 'id')
@@ -1415,7 +1404,6 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
         </div>
         <div class="card-meta">
           <span>📝 {{ file.questions }} questions</span>
-          <span>💾 {{ file.size }}</span>
         </div>
         <div class="card-actions">
           <a href="/{{ file.display_name }}" class="btn btn-primary">Start Quiz</a>
@@ -2658,8 +2646,13 @@ def debug_all_questions_file(filename):
 
 # User Management Functions (moved to top to avoid undefined function errors)
 def load_users():
-    """Load users from users.json file"""
-    # Try multiple possible paths for case sensitivity on Render
+    """Load users from Redis (preferred) or fallback to users.json file"""
+    # Try loading from Redis first (persistent storage)
+    redis_users = db.get_all_users()
+    if redis_users:
+        return {"users": redis_users}
+    
+    # Fallback to JSON file (for initial setup or if Redis is down)
     possible_paths = [
         os.path.join(BASE_DIR, 'config', 'users.json'),
         os.path.join(BASE_DIR, 'config', 'Users.json'),
@@ -2675,33 +2668,30 @@ def load_users():
             except Exception:
                 continue
     
-    # Return default structure if file not found
+    # Return default structure if nothing found
     return {"users": []}
 
 def save_users(users_data):
-    """Save users to users.json file"""
+    """Save users to Redis (persistent storage)"""
     try:
-        # Determine the correct path to save users.json
-        config_dir = os.path.join(BASE_DIR, 'config')
-        users_file = os.path.join(config_dir, 'users.json')
+        # Save all users to Redis
+        users_list = users_data.get('users', [])
+        success_count = 0
         
-        # Create config directory if it doesn't exist
-        os.makedirs(config_dir, exist_ok=True)
+        for user in users_list:
+            if db.store_user(user):
+                success_count += 1
         
-        # Write to file with proper encoding
-        with open(users_file, 'w', encoding='utf-8') as f:
-            json.dump(users_data, f, indent=4, ensure_ascii=False)
-        
-        return True, "Users saved successfully"
-    except PermissionError as e:
-        print(f"Permission denied when saving users: {e}")
-        return False, "Permission denied: Cannot write to users.json"
-    except IOError as e:
-        print(f"IO error when saving users: {e}")
-        return False, f"Error saving users: {e}"
+        if success_count == len(users_list):
+            print(f"✅ Saved {success_count} users to Redis")
+            return True, f"Successfully saved {success_count} users to Redis"
+        elif success_count > 0:
+            return True, f"Partially saved {success_count}/{len(users_list)} users"
+        else:
+            return False, "Failed to save users to Redis - is Redis connected?"
     except Exception as e:
-        print(f"Unexpected error when saving users: {e}")
-        return False, f"Unexpected error: {e}"
+        print(f"❌ Error saving users: {e}")
+        return False, f"Error: {e}"
 
 def add_user(user_id, password, name, expiry=None, role="user"):
     """Add a new user to the system"""
@@ -3680,6 +3670,201 @@ def file(filename):
         total=len(questions),
         data_source=(os.path.basename(FilePath) if FilePath else "none"),
         is_mock=is_mock,
+  </div>
+</div>
+</body>
+</html>
+"""
+
+@app.route('/edit-profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    """Allow users to edit their own profile"""
+    user_id = session.get('user_id')
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        password = request.form.get('password')
+        
+        # Validate required fields
+        if not name:
+            user = get_user_by_id(user_id)
+            return render_template_string(USER_PROFILE_TEMPLATE, user=user, error="Full name is required"), 400
+        
+        # Call edit_user function (admin can edit all, regular users only their own)
+        success, message = edit_user(user_id, name=name, password=password)
+        
+        if success:
+            # Update session with new name
+            session['user_name'] = name
+            session.modified = True
+            user = get_user_by_id(user_id)
+            return render_template_string(USER_PROFILE_TEMPLATE, user=user, success="Profile updated successfully!"), 200
+        else:
+            user = get_user_by_id(user_id)
+            return render_template_string(USER_PROFILE_TEMPLATE, user=user, error=message), 400
+    
+    # GET request - show profile form
+    user = get_user_by_id(user_id)
+    if not user:
+        return redirect(url_for('logout'))
+    
+    return render_template_string(USER_PROFILE_TEMPLATE, user=user)
+
+# User Profile Template (Self-service profile editing for regular users)
+USER_PROFILE_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Profile - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{max-width:1100px;margin:28px auto;padding:0 18px;width:100%}
+.profile-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid rgba(167,139,250,0.2);animation:slideDown 0.5s ease-out;max-width:600px;margin:0 auto}
+.header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
+.header-icon{font-size:48px}
+.header-content h1{font-size:32px;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;font-weight:800}
+.header-content p{color:var(--text-secondary);font-size:15px;margin:0}
+.info-section{background:rgba(167,139,250,0.08);border-radius:12px;padding:20px;margin-bottom:24px;border-left:4px solid var(--accent)}
+.info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.info-row:last-child{margin-bottom:0}
+.info-label{color:var(--text-secondary);font-weight:600;font-size:14px}
+.info-value{color:var(--text-primary);font-weight:700;font-size:15px}
+.form-group{margin-bottom:24px;text-align:left}
+.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:15px}
+.form-group input{width:100%;padding:12px 14px;border:1px solid rgba(167,139,250,0.3);border-radius:8px;font-size:15px;transition:all 0.3s;background:rgba(255,255,255,0.05);color:var(--text-primary)}
+.form-group input::placeholder{color:var(--text-muted);opacity:0.7}
+.form-group input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(167,139,250,0.2);background:rgba(255,255,255,0.08)}
+.form-group input:read-only{background:rgba(0,0,0,0.3);opacity:0.7;cursor:not-allowed}
+.form-actions{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+.btn{padding:12px 24px;background:linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:15px;transition:all 0.3s ease;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 15px rgba(139,92,246,0.3);flex:1}
+.btn:hover{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);transform:translateY(-3px);box-shadow:0 8px 24px rgba(167,139,250,0.4)}
+.btn-secondary{background:var(--accent-dark);opacity:0.6;flex:1}
+.btn-secondary:hover{opacity:1;transform:translateY(-3px)}
+.error{color:var(--danger);background:rgba(244,63,94,0.15);padding:16px;border-radius:10px;margin-bottom:24px;border:1px solid rgba(244,63,94,0.3);animation:shake 0.5s ease}
+.success{color:var(--success);background:rgba(52,211,153,0.15);padding:16px;border-radius:10px;margin-bottom:24px;border:1px solid rgba(52,211,153,0.3);animation:slideDown 0.5s ease}
+.field-help{color:var(--text-muted);font-size:13px;margin-top:6px}
+@keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@media(max-width:600px){.profile-card{padding:24px}.header{flex-direction:column;text-align:center}.header-icon{font-size:40px}.header-content h1{font-size:24px}.form-actions{flex-direction:column}.btn{width:100%}.info-row{flex-direction:column;align-items:flex-start;gap:8px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="profile-card">
+    <div class="header">
+      <div class="header-icon">👤</div>
+      <div class="header-content">
+        <h1>My Profile</h1>
+        <p>Update your account information</p>
+      </div>
+    </div>
+    
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    
+    {% if success %}
+    <div class="success">{{ success }}</div>
+    {% endif %}
+    
+    <div class="info-section">
+      <div class="info-row">
+        <span class="info-label">User ID:</span>
+        <span class="info-value">{{ user.id }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role:</span>
+        <span class="info-value">
+          {% if user.role == 'admin' %}
+          👑 Administrator
+          {% else %}
+          📚 User
+          {% endif %}
+        </span>
+      </div>
+      {% if user.expiry %}
+      <div class="info-row">
+        <span class="info-label">Account Expires:</span>
+        <span class="info-value">{{ user.expiry }}</span>
+      </div>
+      {% else %}
+      <div class="info-row">
+        <span class="info-label">Account Status:</span>
+        <span class="info-value">🔄 No expiry date</span>
+      </div>
+      {% endif %}
+    </div>
+    
+    <form method="POST">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" value="{{ user.name }}" required placeholder="Enter your full name">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password (Leave empty to keep current)</label>
+        <input type="password" id="password" name="password" placeholder="Enter new password (optional)">
+        <div class="field-help">Only enter a new password if you want to change it.</div>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn">💾 Save Changes</button>
+        <a href="/menu" class="btn btn-secondary">❌ Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>
+"""
+
+@app.route('/api/session-details')
+@login_required
+def get_session_details_api():
+    """API endpoint to get session details for the current user"""
+    user_id = session.get('user_id')
+    sessions = get_session_details(user_id)
+    
+    return jsonify({
+        'user_id': user_id,
+        'user_name': session.get('user_name'),
+        'sessions': sessions
+    })
+
+# Catch-all route - MUST be defined LAST after all specific routes
+@app.route("/<path:filename>")
+@login_required
+def file(filename):
+    # Try to find the file in the data folder (case-insensitive)
+    FilePath = os.path.join(DATA_FOLDER, filename + ".json")
+    print(f"Looking for file: {FilePath}")
+    
+    # Determine if this is a mock exam or study module
+    is_mock = 'Mock' in filename
+    is_module = filename.startswith('Module')
+    
+    if FilePath and os.path.exists(FilePath) and is_allowed_path(FilePath):
+        try:
+            questions, raw = load_questions_from_file(FilePath)
+            # Track recently viewed item
+            add_to_recently_viewed(session, {'name': filename})
+        except Exception as e:
+            print(f"Error loading file: {e}")
+            questions = []
+    else:
+        print(f"File not found: {FilePath}")
+        questions = []
+    
+    return render_template_string(
+        TEMPLATE,
+        questions=questions,
+        total=len(questions),
+        data_source=(os.path.basename(FilePath) if FilePath else "none"),
+        is_mock=is_mock,
         is_module=is_module
     )
 
@@ -3695,6 +3880,14 @@ if __name__ == "__main__":
         print("⚠️  WARNING: Redis not connected!")
         print("⚠️  Set REDIS_URL environment variable to enable session management")
         print("⚠️  Single-session authentication will not work until Redis is configured")
+    else:
+        # Migrate users from JSON to Redis (one-time migration)
+        users_json_path = os.path.join(BASE_DIR, 'config', 'users.json')
+        migrated_count = db.migrate_users_from_json(users_json_path)
+        if migrated_count > 0:
+            print(f"📦 Migrated {migrated_count} users from JSON to Redis")
+        else:
+            print("✅ User credentials loaded from Redis")
     
     print("=" * 50)
     

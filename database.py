@@ -270,3 +270,183 @@ def get_connection_status() -> Dict:
             'error': str(e),
             'redis_url': REDIS_URL.split('@')[-1] if '@' in REDIS_URL else REDIS_URL
         }
+
+
+# ========== USER MANAGEMENT FUNCTIONS ==========
+
+def store_user(user_data: Dict) -> bool:
+    """
+    Store a user in Redis.
+    
+    Args:
+        user_data: Dictionary containing user info (id, password, name, role, expiry)
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if redis_client is None:
+        return False
+    
+    try:
+        user_id = user_data.get('id')
+        if not user_id:
+            return False
+        
+        # Store user data in Redis (no expiration - users persist forever)
+        redis_client.set(
+            f'user:{user_id}',
+            json.dumps(user_data)
+        )
+        
+        # Add to users set for easy listing
+        redis_client.sadd('users:all', user_id)
+        
+        print(f"✅ User '{user_id}' stored in Redis")
+        return True
+    except Exception as e:
+        print(f"❌ Error storing user: {e}")
+        return False
+
+
+def get_user(user_id: str) -> Optional[Dict]:
+    """
+    Get a user from Redis.
+    
+    Args:
+        user_id: The user ID
+        
+    Returns:
+        User data dict if found, None otherwise
+    """
+    if redis_client is None:
+        return None
+    
+    try:
+        user_data = redis_client.get(f'user:{user_id}')
+        if user_data:
+            return json.loads(user_data)
+        return None
+    except Exception as e:
+        print(f"❌ Error getting user: {e}")
+        return None
+
+
+def get_all_users() -> List[Dict]:
+    """
+    Get all users from Redis.
+    
+    Returns:
+        List of user data dictionaries
+    """
+    if redis_client is None:
+        return []
+    
+    try:
+        user_ids = redis_client.smembers('users:all')
+        users = []
+        
+        for user_id in user_ids:
+            user_data = get_user(user_id)
+            if user_data:
+                users.append(user_data)
+        
+        return users
+    except Exception as e:
+        print(f"❌ Error getting all users: {e}")
+        return []
+
+
+def update_user(user_id: str, updates: Dict) -> bool:
+    """
+    Update a user in Redis.
+    
+    Args:
+        user_id: The user ID
+        updates: Dictionary of fields to update
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if redis_client is None:
+        return False
+    
+    try:
+        # Get existing user
+        user_data = get_user(user_id)
+        if not user_data:
+            return False
+        
+        # Update fields
+        user_data.update(updates)
+        
+        # Store back
+        return store_user(user_data)
+    except Exception as e:
+        print(f"❌ Error updating user: {e}")
+        return False
+
+
+def delete_user(user_id: str) -> bool:
+    """
+    Delete a user from Redis.
+    
+    Args:
+        user_id: The user ID
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if redis_client is None:
+        return False
+    
+    try:
+        # Delete user data
+        redis_client.delete(f'user:{user_id}')
+        
+        # Remove from users set
+        redis_client.srem('users:all', user_id)
+        
+        print(f"✅ User '{user_id}' deleted from Redis")
+        return True
+    except Exception as e:
+        print(f"❌ Error deleting user: {e}")
+        return False
+
+
+def migrate_users_from_json(json_file_path: str) -> int:
+    """
+    Migrate users from a JSON file to Redis (one-time migration).
+    
+    Args:
+        json_file_path: Path to users.json file
+        
+    Returns:
+        Number of users migrated
+    """
+    if redis_client is None:
+        return 0
+    
+    try:
+        import os
+        if not os.path.exists(json_file_path):
+            return 0
+        
+        with open(json_file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        users = data.get('users', [])
+        migrated = 0
+        
+        for user in users:
+            # Only migrate if user doesn't exist in Redis
+            if not get_user(user['id']):
+                if store_user(user):
+                    migrated += 1
+        
+        if migrated > 0:
+            print(f"✅ Migrated {migrated} users from JSON to Redis")
+        
+        return migrated
+    except Exception as e:
+        print(f"❌ Error migrating users: {e}")
+        return 0
