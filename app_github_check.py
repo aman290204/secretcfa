@@ -2656,16 +2656,8 @@ def debug_all_questions_file(filename):
 
 # User Management Functions (moved to top to avoid undefined function errors)
 def load_users():
-    """Load users from Redis (with JSON fallback for migration)"""
-    # Try loading from Redis first
-    try:
-        users_from_redis = db.get_all_users()
-        if users_from_redis:
-            return {"users": users_from_redis}
-    except Exception as e:
-        print(f"⚠️ Error loading users from Redis: {e}")
-    
-    # Fallback to JSON file if Redis is not available or empty
+    """Load users from users.json file"""
+    # Try multiple possible paths for case sensitivity on Render
     possible_paths = [
         os.path.join(BASE_DIR, 'config', 'users.json'),
         os.path.join(BASE_DIR, 'config', 'Users.json'),
@@ -2685,24 +2677,29 @@ def load_users():
     return {"users": []}
 
 def save_users(users_data):
-    """Save users to Redis (primary storage)"""
+    """Save users to users.json file"""
     try:
-        # Extract users list from the data structure
-        users_list = users_data.get('users', [])
+        # Determine the correct path to save users.json
+        config_dir = os.path.join(BASE_DIR, 'config')
+        users_file = os.path.join(config_dir, 'users.json')
         
-        # Save each user to Redis
-        for user in users_list:
-            user_id = user.get('id')
-            if user_id:
-                # Pass the entire user dictionary to store_user
-                db.store_user(user)
+        # Create config directory if it doesn't exist
+        os.makedirs(config_dir, exist_ok=True)
         
-        print(f"✅ Saved {len(users_list)} users to Redis")
-        return True, "Users saved successfully to Redis"
+        # Write to file with proper encoding
+        with open(users_file, 'w', encoding='utf-8') as f:
+            json.dump(users_data, f, indent=4, ensure_ascii=False)
         
-    except Exception as e:
-        print(f"❌ Error saving users to Redis: {e}")
+        return True, "Users saved successfully"
+    except PermissionError as e:
+        print(f"Permission denied when saving users: {e}")
+        return False, "Permission denied: Cannot write to users.json"
+    except IOError as e:
+        print(f"IO error when saving users: {e}")
         return False, f"Error saving users: {e}"
+    except Exception as e:
+        print(f"Unexpected error when saving users: {e}")
+        return False, f"Unexpected error: {e}"
 
 def add_user(user_id, password, name, expiry=None, role="user"):
     """Add a new user to the system"""
