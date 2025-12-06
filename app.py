@@ -122,21 +122,21 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         # Step 1: Check if user_id exists in Flask session (backward compatibility)
         if 'user_id' not in session:
-            return redirect(url_for('login_route'))
+            return redirect(url_for('login'))
         
         # Step 2: Extract JWT token from session
         jwt_token = session.get('jwt_token')
         if not jwt_token:
             # No JWT token - session invalid, clear and redirect
             session.clear()
-            return redirect(url_for('login_route'))
+            return redirect(url_for('login'))
         
         # Step 3: Verify JWT is valid and not expired
         payload = verify_jwt_token(jwt_token)
         if not payload:
             # JWT invalid or expired
             session.clear()
-            return redirect(url_for('login_route'))
+            return redirect(url_for('login'))
         
         # Step 4: Extract session_token from JWT payload
         session_token = payload.get('tok')
@@ -145,13 +145,13 @@ def login_required(f):
         if not session_token or not user_id:
             # Malformed JWT
             session.clear()
-            return redirect(url_for('login_route'))
+            return redirect(url_for('login'))
         
         # Step 5: Verify session_token exists in Redis
         if not db.verify_session_token(user_id, session_token):
             # Session was invalidated (logged in on another device)
             session.clear()
-            return redirect(url_for('login_route'))
+            return redirect(url_for('login'))
         
         # All checks passed - session is valid
         return f(*args, **kwargs)
@@ -2831,6 +2831,17 @@ def get_session_details(user_id):
     
     return login_history[user_id]
 
+# Root route - redirect to login
+@app.route('/')
+def index():
+    """Homepage - redirect to login if not authenticated, otherwise to manage users"""
+    if 'user_id' in session and 'jwt_token' in session:
+        # User is logged in, redirect to manage users
+        return redirect(url_for('manage_users'))
+    else:
+        # Not logged in, redirect to login
+        return redirect(url_for('login'))
+
 # Login Routes with JWT Authentication
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -2895,8 +2906,8 @@ def login():
     
     print(f"✅ User '{user_id}' logged in successfully")
     
-    # Redirect to menu
-    return redirect(url_for('menu'))
+    # Redirect to manage users page (admin panel)
+    return redirect(url_for('manage_users'))
 
 @app.route('/logout')
 def logout():
