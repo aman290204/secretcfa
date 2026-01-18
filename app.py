@@ -22,7 +22,7 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Track login history for users (format: {user_id: [{'timestamp': ..., 'ip': ..., 'user_agent': ..., 'is_current': bool}]})
-login_history = {}
+# login_history = {}  # Migrated to Redis
 
 # History and recently viewed functions
 def add_to_history(session, quiz_data):
@@ -116,66 +116,127 @@ def sort_modules(files, sort_type='id'):
     # Return mocks first, then sorted modules
     return mocks + modules
 
-# Login required decorator with JWT verification
+# ========== SECURITY & USER MANAGEMENT ==========
+
+def is_user_valid(user):
+    """Check if user account is still valid based on expiry date (UTC)"""
+    if not user or not user.get('expiry'):
+        return True  # No expiry date means valid forever
+    
+    try:
+        from datetime import datetime
+        expiry_date = datetime.fromisoformat(user['expiry'])
+        current_date = datetime.now()
+        return current_date <= expiry_date
+    except:
+        return True  # Fallback to valid on parse error
+
+def verify_jwt_token(token):
+    """Verify JWT token and return payload if valid"""
+    try:
+        return jwt.decode(token, app.secret_key, algorithms=['HS256'])
+    except:
+        return None
+
+def add_user(user_id, password, name, expiry=None, role="user"):
+    """Add a new user via Redis"""
+    if db.get_user(user_id): return False, "User ID already exists"
+    user_data = {'id': user_id, 'password': password, 'name': name, 'role': role, 'expiry': expiry}
+    return (True, "User added successfully") if db.store_user(user_data) else (False, "Failed to store user")
+
+def remove_user(user_id):
+    """Remove a user via Redis"""
+    return (True, "User removed successfully") if db.delete_user(user_id) else (False, "Failed to delete user")
+
+def edit_user(user_id, name=None, role=None, expiry=None, password=None):
+    """Edit an existing user via Redis"""
+    user = db.get_user(user_id)
+    if not user: return False, "User not found"
+    if name is not None: user['name'] = name
+    if role is not None: user['role'] = role
+    if expiry is not None: user['expiry'] = expiry if expiry else None
+    if password is not None and password: user['password'] = password
+    return (True, "User updated successfully") if db.store_user(user) else (False, "Failed to update user")
+
+def get_user_by_id(user_id):
+    """Get user with validity status"""
+    user = db.get_user(user_id)
+    if user: user['is_valid'] = is_user_valid(user)
+    return user
+
+def authenticate_user(user_id, password):
+    """Authenticate user strictly using Redis data"""
+    user = db.get_user(user_id)
+    if user and user['password'] == password:
+        return user if is_user_valid(user) else None
+    return None
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Step 1: Check if user_id exists in Flask session (backward compatibility)
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        
-        # Step 2: Extract JWT token from session
+        # 1. JWT Signature & Session existence
         jwt_token = session.get('jwt_token')
         if not jwt_token:
-            # No JWT token - session invalid, clear and redirect
-            session.clear()
             return redirect(url_for('login'))
         
-        # Step 3: Verify JWT is valid and not expired
         payload = verify_jwt_token(jwt_token)
         if not payload:
-            # JWT invalid or expired
             session.clear()
             return redirect(url_for('login'))
-        
-        # Step 4: Extract session_token from JWT payload
-        session_token = payload.get('tok')
+            
         user_id = payload.get('uid')
+        session_token = payload.get('tok')
         
-        if not session_token or not user_id:
-            # Malformed JWT
+        # 2. User existence in Redis
+        user = db.get_user(user_id)
+        if not user:
             session.clear()
             return redirect(url_for('login'))
-        
-        # Step 5: Verify session_token exists in Redis
+            
+        # 3. Account Expiry Check
+        if not is_user_valid(user):
+            session.clear()
+            return render_template_string(LOGIN_TEMPLATE, error="Your account has expired. Please contact support.")
+            
+        # 4. Session token verification (Single session enforcement)
         if not db.verify_session_token(user_id, session_token):
-            # Session was invalidated (logged in on another device)
             session.clear()
             return redirect(url_for('login'))
+            
+        # Success - populate session for easy template access
+        session['user_role'] = user.get('role', 'user')
+        session['user_name'] = user.get('name', 'User')
         
-        # All checks passed - session is valid
         return f(*args, **kwargs)
-    
     return decorated_function
 
-# Admin required decorator
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        # 1. JWT & Basic Auth
+        jwt_token = session.get('jwt_token')
+        if not jwt_token:
             return redirect(url_for('login'))
+            
+        payload = verify_jwt_token(jwt_token)
+        if not payload:
+            session.clear()
+            return redirect(url_for('login'))
+            
+        user_id = payload.get('uid')
+        session_token = payload.get('tok')
         
-        # Check if user is admin
-        users_data = load_users()
-        user = None
-        for u in users_data['users']:
-            if u['id'] == session['user_id']:
-                user = u
-                break
-        
+        # 2. Admin Existence & Role Check (Redis ONLY)
+        user = db.get_user(user_id)
         if not user or user.get('role') != 'admin':
-            return render_template_string(MENU_TEMPLATE, files=[], total_files=0, debug_modules=0, debug_mocks=0, error="Access denied. Admin privileges required.", user_role=session.get('user_role', 'user'))
+            # Redirect to menu with error if not admin
+            return redirect(url_for('menu', error="Access denied. Admin privileges required."))
         
+        # 3. Expiry & Session Check
+        if not is_user_valid(user) or not db.verify_session_token(user_id, session_token):
+             session.clear()
+             return redirect(url_for('login'))
+             
         return f(*args, **kwargs)
     return decorated_function
 
@@ -437,14 +498,32 @@ def data_file_name_route(filename):
         return jsonify({"error": "file not found or not allowed", "tried": tried_paths}), 404
     
     # print(chosen)
-    try:
-        questions, raw = load_questions_from_file(chosen)
-    except Exception as e:
-        return jsonify({"error": "failed to parse JSON", "detail": str(e)}), 500
+    # Detect Quiz Mode and Metadata
+    quiz_meta = raw.get("quiz", {})
+    mode = "mock" if quiz_meta.get("type") == "mock_exam" else "practice"
+    
+    # Get Time Limit (default to 8100s for mocks if 0/missing)
+    time_limit = quiz_meta.get("settings", {}).get("session_time_limit_in_seconds", 0)
+    if mode == "mock" and not time_limit:
+        time_limit = 8100
+        
+    # Determine if it's a module based on category/filename if not explicitly set
+    is_module = not (mode == "mock")
 
-    # render the same TEMPLATE but with questions loaded from chosen file
-    # Add home button to template context
-    return render_template_string(TEMPLATE, questions=questions, total=len(questions), data_source=os.path.basename(chosen), show_home=True, user_role=session.get('user_role', 'user'))
+    # render the TEMPLATE with mode and time_limit
+    return render_template_string(
+        TEMPLATE, 
+        questions=questions, 
+        total=len(questions), 
+        data_source=os.path.basename(chosen), 
+        show_home=True, 
+        user_role=session.get('user_role', 'user'),
+        mode=mode,
+        time_limit=time_limit,
+        is_mock=(mode == "mock"),
+        is_module=is_module,
+        quiz_title=quiz_meta.get("name", "Quiz Viewer")
+    )
 
 TEMPLATE = """
 <!doctype html>
@@ -459,7 +538,9 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;background:var(--glass-bg);backdrop-filter:blur(10px);padding:16px;border-radius:12px;border:1px solid var(--glass-border);animation:slideDown 0.4s ease}
 .exam-title{font-weight:700;font-size:18px;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.time-box{padding:8px 12px;border-radius:8px;background:var(--glass-bg);border:1px solid var(--glass-border);font-weight:600;transition:all 0.3s ease;color:var(--accent-light)}
+.time-box{padding:8px 12px;border-radius:8px;background:var(--glass-bg);border:1px solid var(--glass-border);font-weight:600;transition:all 0.3s ease;color:var(--accent-light);min-width:110px;text-align:center}
+.time-box.warning{color:#facc15}
+.time-box.danger{color:#f87171}
 .time-box:hover{transform:scale(1.05);box-shadow:0 0 20px rgba(167,139,250,0.3);background:rgba(167,139,250,0.1)}
 .card{background:var(--card);padding:22px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);transition:all 0.3s ease;border:1px solid var(--card-border);position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg, transparent, var(--gold), transparent);opacity:0;transition:opacity 0.3s ease}
@@ -536,13 +617,13 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
 <div class="container">
   <div class="topbar">
     <div>
-      <div class="exam-title">Loaded quiz — {{ total }} questions</div>
-      <div style="color:var(--muted);font-size:13px">Source: {{ data_source }}</div>
+      <div class="exam-title">{{ quiz_title }}</div>
+      <div style="color:var(--muted);font-size:13px">Source: {{ data_source }} | Mode: {{ mode|capitalize }}</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <a href="/menu" class="btn" style="text-decoration:none;color:#0f1724">🏠 Home</a>
       <a href="/logout" class="btn" style="text-decoration:none;color:#0f1724">Logout</a>
-      <div class="time-box" id="timer">Time 00:00</div>
+      <div class="time-box" id="timer">--:--:--</div>
     </div>
   </div>
 
@@ -604,18 +685,98 @@ let currentQuestions = [...questions]; // Working copy of questions for sorting
 let originalOrder = [...Array(total).keys()]; // Keep track of original order
 
 // Check if this is a mock exam or study module
-const isMock = {{ is_mock | tojson }};
-const isModule = {{ is_module | tojson }};
+// Mode Constants from Backend
+const MODE = "{{ mode }}";
+const TIME_LIMIT = {{ time_limit }}; // in seconds
+const IS_MOCK = MODE === "mock";
 
-document.getElementById('qnum').textContent = idx+1 + ' / ' + total;
+// Timer Persistence logic
+let remainingTime;
+let timerStart = Date.now();
 
-// timer
-let start = Date.now();
-setInterval(()=> {
-  const s = Math.floor((Date.now()-start)/1000);
-  const mm = String(Math.floor(s/60)).padStart(2,'0'), ss = String(s%60).padStart(2,'0');
-  document.getElementById('timer').textContent = `Time ${mm}:${ss}`;
-}, 500);
+if (IS_MOCK) {
+  syncTimerWithServer();
+} else {
+  // Practice mode upward timer
+  startPracticeTimer();
+}
+
+async function syncTimerWithServer() {
+  try {
+    const res = await fetch(`/api/mock/timer-status?quiz_id={{ data_source }}&duration=${TIME_LIMIT}`);
+    const data = await res.json();
+    remainingTime = data.remaining_seconds;
+    
+    if (remainingTime <= 0) {
+      console.log("⏰ Timer already expired. Auto-submitting...");
+      autoSubmitMock();
+    } else {
+      startMockTimer();
+    }
+  } catch (err) {
+    console.error("Timer sync failed", err);
+    remainingTime = TIME_LIMIT;
+    startMockTimer();
+  }
+}
+
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  if (h > 0) {
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+function startMockTimer() {
+  const timerEl = document.getElementById("timer");
+  
+  // Initial display
+  timerEl.textContent = formatTime(remainingTime);
+  
+  const interval = setInterval(() => {
+    remainingTime--;
+    
+    // Check if expired
+    if (remainingTime <= 0) {
+      clearInterval(interval);
+      autoSubmitMock();
+    }
+    
+    timerEl.textContent = formatTime(remainingTime);
+    
+    // Warning colors
+    if (remainingTime <= 300) {
+      timerEl.classList.add("danger");
+      timerEl.classList.remove("warning");
+    } else if (remainingTime <= 1800) {
+      timerEl.classList.add("warning");
+    }
+    
+    // Auto-submit at 0
+    if (remainingTime <= 0) {
+      clearInterval(interval);
+      autoSubmitMock();
+    }
+  }, 1000);
+}
+
+function startPracticeTimer() {
+  const timerEl = document.getElementById("timer");
+  setInterval(() => {
+    const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+    timerEl.textContent = formatTime(elapsed);
+  }, 1000);
+}
+
+function autoSubmitMock() {
+  // Use a non-blocking notification or immediate action
+  console.log("Time is up. Submitting exam...");
+  showFinalResults();
+}
 
 function updateProgress() {
   const answeredCount = questionStatus.filter(status => status).length;
@@ -623,10 +784,10 @@ function updateProgress() {
   document.getElementById('progressFill').style.width = progressPercent + '%';
   document.getElementById('progressText').textContent = `${answeredCount} of ${total} questions answered`;
   
-  // Show finish button when all questions are answered (for BOTH mocks and modules)
+  // Show finish button when all questions are answered
   if (answeredCount === total) {
     document.getElementById('finish').style.display = 'inline-block';
-    document.getElementById('finish').textContent = isMock ? '🏁 Finish Exam' : '✅ Finish & Save Score';
+    document.getElementById('finish').textContent = IS_MOCK ? '🏁 Finish Exam' : '✅ Finish & Save Score';
   } else {
     document.getElementById('finish').style.display = 'none';
   }
@@ -651,7 +812,7 @@ function render(i){
     label.innerHTML = `<input type="radio" name="choice" value="${c.id}" id="opt-${j}" ${isChecked}> <div style="font-size:14px">${c.text ? c.text : ''}</div>`;
     label.addEventListener('click', ()=> { document.getElementById('feedback').innerHTML=''; });
     
-    if (isMock) {
+    if (IS_MOCK) {
       label.addEventListener('click', ()=> {
         setTimeout(() => {
           submitAnswerAutomatically(c.id);
@@ -665,6 +826,15 @@ function render(i){
   document.getElementById('feedback').innerHTML = '';
   document.getElementById('gotoInput').value = '';
   
+  // Hide/Show Submit and Skip based on Mode
+  if (IS_MOCK) {
+    document.getElementById('submit').style.display = 'none';
+    document.getElementById('skip').style.display = 'none';
+  } else {
+    document.getElementById('submit').style.display = 'inline-block';
+    document.getElementById('skip').style.display = 'inline-block';
+  }
+
   if (userAnswers[i]) {
     const prevSelected = document.querySelector(`input[value="${userAnswers[i]}"]`);
     if (prevSelected) prevSelected.checked = true;
@@ -673,7 +843,7 @@ function render(i){
 
 function submitAnswerAutomatically(choiceId) {
   // Only for mock exams - auto-submit when answer is selected
-  if (!isMock) return;
+  if (!IS_MOCK) return;
   
   const fbDiv = document.getElementById('feedback');
   fbDiv.innerHTML = '';
@@ -762,10 +932,13 @@ function showFinalResults() {
   const scorePercent = Math.round((correctCount / total) * 100);
   const timeSpent = Math.floor((Date.now() - start) / 1000);
   
-  // Save attempt to server
+  // Save attempt to server with metadata
   saveAttemptToServer({
-    quiz_name: '{{ data_source[:-5] if data_source else "Unknown Quiz" }}',
-    quiz_type: isMock ? 'mock' : 'module',
+    quiz_name: '{{ quiz_title }}',
+    quiz_id: '{{ data_source }}',
+    quiz_type: MODE,
+    mode: MODE,
+    time_limit: TIME_LIMIT,
     total_questions: total,
     correct_count: correctCount,
     wrong_count: wrongCount,
@@ -928,10 +1101,7 @@ document.getElementById('submit').addEventListener('click', ()=>{
 });
 
 document.getElementById('finish').addEventListener('click', ()=>{
-  // Only for mock exams
-  if (isMock) {
-    showFinalResults();
-  }
+  showFinalResults();
 });
 
 document.getElementById('reviewAnswers').addEventListener('click', ()=>{
@@ -1175,8 +1345,12 @@ def menu():
     modules = [f for f in files if f['is_module']]
     mocks = [f for f in files if f['is_mock']]
     
-    # Pass user role to template
-    return render_template_string(MENU_TEMPLATE, files=files, total_files=len(files), debug_modules=len(modules), debug_mocks=len(mocks), session=session, recently_viewed=recently_viewed_items, current_sort=sort_type, user_role=session.get('user_role', 'user'))
+    # Get user stats from Redis for dashboard
+    user_id = session.get('user_id')
+    stats = db.get_user_quiz_stats(user_id) if user_id else {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
+    
+    # Pass user role and stats to template
+    return render_template_string(MENU_TEMPLATE, files=files, total_files=len(files), debug_modules=len(modules), debug_mocks=len(mocks), session=session, recently_viewed=recently_viewed_items, current_sort=sort_type, user_role=session.get('user_role', 'user'), stats=stats)
 
 
 @app.route("/recently-viewed")
@@ -1189,9 +1363,17 @@ def recently_viewed():
 @app.route("/history")
 @login_required
 def history():
-    """Display user's quiz history"""
-    user_history = get_user_history(session)
-    return render_template_string(HISTORY_TEMPLATE, history=user_history, session=session)
+    """Display user's quiz history from Redis for persistent tracking"""
+    user_id = session.get('user_id')
+    
+    # Get attempts from Redis (limit to 50 for history page)
+    attempts = db.get_user_quiz_attempts(user_id, limit=50)
+    
+    # Map Redis attempt data to match history template expectations if necessary
+    # or update the template to match Redis data structure. 
+    # Let's update the template to be more robust.
+    
+    return render_template_string(HISTORY_TEMPLATE, history=attempts, session=session)
 
 @app.route("/save-quiz-result", methods=["POST"])
 @login_required
@@ -1224,34 +1406,84 @@ def save_attempt():
     try:
         data = request.get_json()
         user_id = session.get('user_id')
+        quiz_id = data.get('quiz_id')
+        mode = data.get('mode', data.get('quiz_type', 'practice'))
         
         if not user_id:
             return jsonify({"status": "error", "message": "Not logged in"}), 401
+            
+        # Final Verification: Authoritative Time Calculation for Mocks
+        time_spent_seconds = data.get('time_spent_seconds', 0)
+        if mode == 'mock' and quiz_id:
+            remaining = db.get_mock_timer(user_id, quiz_id)
+            
+            # If timer expired, we use the full duration
+            # Default duration 8100 (CFA Mock)
+            limit = data.get('time_limit', 8100)
+            
+            if remaining <= 0 and remaining != -1:
+                # Timer expired (or forced submission)
+                time_spent_seconds = limit
+            elif remaining > 0:
+                # Calculate server-side elapsed time
+                time_spent_seconds = limit - remaining
+                
+            # Clear the timer from Redis upon successful submission
+            db.clear_mock_timer(user_id, quiz_id)
         
         # Prepare attempt data
         attempt_data = {
+            'quiz_id': quiz_id,
             'quiz_name': data.get('quiz_name', 'Unknown Quiz'),
-            'quiz_type': data.get('quiz_type', 'module'),  # 'module' or 'mock'
+            'quiz_type': mode,
             'total_questions': data.get('total_questions', 0),
             'correct_count': data.get('correct_count', 0),
             'wrong_count': data.get('wrong_count', 0),
             'skipped_count': data.get('skipped_count', 0),
             'score_percent': data.get('score_percent', 0),
-            'time_spent_seconds': data.get('time_spent_seconds', 0),
-            'responses': data.get('responses', [])  # List of {question_id, user_answer, correct_answer, is_correct}
+            'time_spent_seconds': time_spent_seconds,
+            'responses': data.get('responses', [])
         }
         
         # Store in Redis
         attempt_id = db.store_quiz_attempt(user_id, attempt_data)
         
         if attempt_id:
+            # Clear legacy session history if it exists to preserve memory
+            if 'history' in session:
+                session.pop('history')
+                
             return jsonify({"status": "success", "attempt_id": attempt_id})
         else:
-            return jsonify({"status": "error", "message": "Failed to store attempt (Redis may be unavailable)"}), 500
+            return jsonify({"status": "error", "message": "Failed to store attempt"}), 500
             
     except Exception as e:
         print(f"❌ Error saving attempt: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/api/mock/timer-status")
+@login_required
+def mock_timer_status():
+    """Authoritative endpoint to get or initialize a mock exam timer"""
+    quiz_id = request.args.get('quiz_id')
+    duration = int(request.args.get('duration', 8100))
+    user_id = session.get('user_id')
+    
+    if not quiz_id:
+        return jsonify({"error": "quiz_id required"}), 400
+        
+    remaining = db.get_mock_timer(user_id, quiz_id)
+    
+    # If no timer exists, initialize it (Idempotent start)
+    if remaining == -1:
+        end_ts = db.set_mock_timer(user_id, quiz_id, duration)
+        remaining = duration
+        
+    return jsonify({
+        "remaining_seconds": remaining,
+        "is_expired": remaining <= 0,
+        "quiz_id": quiz_id
+    })
 
 
 @app.route("/my-scores")
@@ -1445,7 +1677,39 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
   .admin-actions{width:100%}
   .btn{width:100%;text-align:center}
   .header h1{font-size:24px}
+  .dashboard-top{flex-direction:column}
+  .countdown-box{width:auto;min-width:unset}
+  .score-circles{flex-direction:column;gap:20px}
 }
+/* CFA Dashboard Styles */
+.dashboard{background:#f5f7fa;border-radius:16px;padding:24px;margin-bottom:30px;border:1px solid #e1e5eb}
+.dashboard-top{display:flex;gap:24px;margin-bottom:24px;align-items:flex-start}
+.countdown-box{background:linear-gradient(135deg, #0A2540 0%, #0052A5 100%);padding:20px;border-radius:12px;min-width:140px;text-align:center;color:#fff;box-shadow:0 4px 15px rgba(0,82,165,0.3)}
+.countdown-number{font-size:48px;font-weight:800;line-height:1}
+.countdown-label{font-size:14px;text-transform:uppercase;margin-top:4px;opacity:0.9}
+.countdown-date{font-size:12px;margin-top:6px;opacity:0.8;display:flex;align-items:center;justify-content:center;gap:4px}
+.progress-section{flex:1}
+.progress-label{font-size:14px;color:#1a202c;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.progress-bar-outer{background:#e2e8f0;height:24px;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.progress-bar-fill{height:100%;border-radius:12px;transition:width 0.5s ease}
+.progress-bar-fill.orange{background:linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)}
+.progress-bar-fill.green{background:linear-gradient(90deg, #2E7D32 0%, #4caf50 100%)}
+.task-section{background:#e3f2fd;border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;border-left:4px solid #0052A5}
+.task-icon{font-size:24px}
+.task-info{flex:1}
+.task-title{font-weight:700;color:#1a202c;font-size:15px;margin-bottom:4px}
+.task-meta{font-size:13px;color:#64748b}
+.task-btn{background:#0052A5;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.2s}
+.task-btn:hover{background:#003d7a;transform:translateY(-2px)}
+.score-circles{display:flex;justify-content:center;gap:40px;padding:20px 0}
+.score-circle{text-align:center}
+.score-ring{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;margin:0 auto 12px;position:relative}
+.score-ring::before{content:'';position:absolute;inset:0;border-radius:50%;border:8px solid #e2e8f0}
+.score-ring.green{border:8px solid #2E7D32;border-color:#2E7D32 #2E7D32 #e2e8f0 #e2e8f0}
+.score-ring.blue{border:8px solid #0052A5;border-color:#0052A5 #0052A5 #e2e8f0 #e2e8f0}
+.score-value{font-size:32px;font-weight:800;color:#1a202c}
+.score-suffix{font-size:14px;color:#64748b;font-weight:600}
+.score-label{font-size:14px;color:#64748b;font-weight:600}
 </style>
 </head>
 <body>
@@ -1496,18 +1760,60 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
     {% endif %}
   {% endfor %}
 
-  <div class="stats">
-    <div class="stat-box">
-      <div class="number">{{ total_files }}</div>
-      <div class="label">Available Files</div>
+  <!-- CFA-Style Dashboard -->
+  <div class="dashboard">
+    <div class="dashboard-top">
+      <!-- Countdown Box -->
+      <div class="countdown-box">
+        <div class="countdown-number" id="daysUntil">--</div>
+        <div class="countdown-label">Days Until</div>
+        <div class="countdown-date">📅 <span id="examDate">Exam Date</span></div>
+      </div>
+      
+      <!-- Progress Section -->
+      <div class="progress-section">
+        <div class="progress-label">
+          <span>Today's Progress</span>
+          <span id="todayProgress">{{ stats.today_completed|default(0) }}/{{ total_files }}</span>
+        </div>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-fill orange" id="todayBar" style="width: {{ ((stats.today_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%"></div>
+        </div>
+        
+        <div class="progress-label">
+          <span>Study Plan Progress</span>
+          <span id="studyProgress">{{ stats.avg_score|default(0) }}%</span>
+        </div>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-fill green" id="studyBar" style="width: {{ stats.avg_score|default(0) }}%"></div>
+        </div>
+        
+        <!-- Task Section -->
+        <div class="task-section">
+          <div class="task-icon">📝</div>
+          <div class="task-info">
+            <div class="task-title">Practice: Start a Quiz</div>
+            <div class="task-meta">{{ modules|length }} Modules • {{ mocks|length }} Mock Exams Available</div>
+          </div>
+          <a href="#mockGrid" class="task-btn">Start Quiz →</a>
+        </div>
+      </div>
     </div>
-    <div class="stat-box">
-      <div class="number">{{ modules|length }}</div>
-      <div class="label">Study Modules</div>
-    </div>
-    <div class="stat-box">
-      <div class="number">{{ mocks|length }}</div>
-      <div class="label">Mock Exams</div>
+    
+    <!-- Score Circles -->
+    <div class="score-circles">
+      <div class="score-circle">
+        <div class="score-ring green">
+          <span class="score-value">{{ stats.modules_completed|default(0) }}</span>
+        </div>
+        <div class="score-label">Modules Completed</div>
+      </div>
+      <div class="score-circle">
+        <div class="score-ring blue">
+          <span class="score-value">{{ stats.mocks_completed|default(0) }}</span>
+        </div>
+        <div class="score-label">Mocks Completed</div>
+      </div>
     </div>
   </div>
 
@@ -1633,6 +1939,29 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 </div>
 
 <script>
+// CFA Dashboard Logic
+document.addEventListener('DOMContentLoaded', function() {
+  // 1. Exam Countdown
+  const examDate = new Date('2025-05-26'); // Exam Date from screenshot
+  const today = new Date();
+  const diffTime = examDate - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  document.getElementById('daysUntil').textContent = diffDays > 0 ? diffDays : 0;
+  
+  const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+  document.getElementById('examDate').textContent = examDate.toLocaleDateString('en-GB', options).replace(/\//g, '-');
+
+  // 2. Animate Progress Bars
+  setTimeout(() => {
+    const bars = document.querySelectorAll('.progress-bar-fill');
+    bars.forEach(bar => {
+      // Trigger reflow to ensure transition
+      bar.style.width = bar.style.width; 
+    });
+  }, 100);
+});
+
 function openSessionModal() {
   const modal = document.getElementById('sessionModal');
   modal.classList.add('active');
@@ -2467,16 +2796,15 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
         <div class="card-meta">
           <span>📅 {{ attempt.timestamp[:10] }}</span>
           <span>⏰ {{ attempt.timestamp[11:16] }}</span>
-          <span>💯 {{ attempt.score }}/{{ attempt.total_questions * 5 }}</span>
-          <span>📊 {{ attempt.percentage }}%</span>
+          <span>📊 {{ attempt.score_percent }}%</span>
         </div>
         <div class="card-meta">
-          <span>✅ {{ attempt.correct }} correct</span>
-          <span>❌ {{ attempt.incorrect }} incorrect</span>
-          <span>⚪ {{ attempt.unanswered }} unanswered</span>
+          <span>✅ {{ attempt.correct_count }} correct</span>
+          <span>❌ {{ attempt.wrong_count }} incorrect</span>
+          <span>⚪ {{ attempt.skipped_count }} skipped</span>
         </div>
         <div class="card-actions">
-          <a href="/review-answers/{{ loop.index0 }}" class="btn btn-primary">Review Answers</a>
+          <a href="/attempt/{{ attempt.attempt_id }}" class="btn btn-primary">Details</a>
         </div>
       </div>
       {% endfor %}
@@ -2598,7 +2926,9 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;background:var(--glass-bg);backdrop-filter:blur(10px);padding:16px;border-radius:12px;border:1px solid var(--glass-border);animation:slideDown 0.4s ease}
 .exam-title{font-weight:700;font-size:18px;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.time-box{padding:8px 12px;border-radius:8px;background:var(--glass-bg);border:1px solid var(--glass-border);font-weight:600;transition:all 0.3s ease;color:var(--accent-light)}
+.time-box{padding:8px 12px;border-radius:8px;background:var(--glass-bg);border:1px solid var(--glass-border);font-weight:600;transition:all 0.3s ease;color:var(--accent-light);min-width:110px;text-align:center}
+.time-box.warning{color:#facc15}
+.time-box.danger{color:#f87171}
 .time-box:hover{transform:scale(1.05);box-shadow:0 0 20px rgba(167,139,250,0.3);background:rgba(167,139,250,0.1)}
 .card{background:var(--card);padding:22px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);transition:all 0.3s ease;border:1px solid var(--card-border);position:relative;overflow:hidden;margin-bottom:18px}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg, transparent, var(--gold), transparent);opacity:0;transition:opacity 0.3s ease}
@@ -2671,7 +3001,7 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
     <div style="display:flex;gap:8px;align-items:center">
       <a href="/menu" class="btn" style="text-decoration:none;color:#0f1724">🏠 Home</a>
       <a href="/logout" class="btn" style="text-decoration:none;color:#0f1724">Logout</a>
-      <div class="time-box" id="timer">Time 00:00</div>
+      <div class="time-box" id="timer">--:--:--</div>
     </div>
   </div>
 
@@ -3085,194 +3415,16 @@ def debug_all_questions_file(filename):
     return render_template_string(debug_template, questions=questions, total=len(questions), data_source=os.path.basename(chosen))
 
 
-# User Management Functions (moved to top to avoid undefined function errors)
-def load_users():
-    """Load users from Redis (with JSON fallback for migration)"""
-    # Try loading from Redis first
-    try:
-        users_from_redis = db.get_all_users()
-        if users_from_redis:
-            return {"users": users_from_redis}
-    except Exception as e:
-        print(f"⚠️ Error loading users from Redis: {e}")
-    
-    # Fallback to JSON file if Redis is not available or empty
-    possible_paths = [
-        os.path.join(BASE_DIR, 'config', 'users.json'),
-        os.path.join(BASE_DIR, 'config', 'Users.json'),
-        os.path.join(BASE_DIR, 'users.json'),
-        os.path.join(BASE_DIR, 'Users.json')
-    ]
-    
-    for users_file in possible_paths:
-        if os.path.exists(users_file):
-            try:
-                with open(users_file, 'r') as f:
-                    return json.load(f)
-            except Exception:
-                continue
-    
-    # Return default structure if file not found
-    return {"users": []}
-
-def save_users(users_data):
-    """Save users to Redis (primary storage)"""
-    try:
-        # Extract users list from the data structure
-        users_list = users_data.get('users', [])
-        
-        # Save each user to Redis
-        for user in users_list:
-            user_id = user.get('id')
-            if user_id:
-                # Pass the entire user dictionary to store_user
-                db.store_user(user)
-        
-        print(f"✅ Saved {len(users_list)} users to Redis")
-        return True, "Users saved successfully to Redis"
-        
-    except Exception as e:
-        print(f"❌ Error saving users to Redis: {e}")
-        return False, f"Error saving users: {e}"
-
-def add_user(user_id, password, name, expiry=None, role="user"):
-    """Add a new user to the system"""
-    users_data = load_users()
-    
-    # Check if user already exists
-    for user in users_data['users']:
-        if user['id'] == user_id:
-            return False, "User ID already exists"
-    
-    # Add new user
-    users_data['users'].append({
-        'id': user_id,
-        'password': password,
-        'name': name,
-        'role': role,
-        'expiry': expiry
-    })
-    
-    # Save and return the result from save_users
-    save_success, save_message = save_users(users_data)
-    if save_success:
-        return True, "User added successfully"
-    else:
-        return False, f"User created but failed to save: {save_message}"
-
-def remove_user(user_id):
-    """Remove a user from the system"""
-    users_data = load_users()
-    
-    # Find and remove the user
-    users_data['users'] = [user for user in users_data['users'] if user['id'] != user_id]
-    
-    # Save and return the result from save_users
-    save_success, save_message = save_users(users_data)
-    if save_success:
-        return True, "User removed successfully"
-    else:
-        return False, f"User removed but failed to save: {save_message}"
-
-def edit_user(user_id, name=None, role=None, expiry=None, password=None):
-    """Edit an existing user's details"""
-    users_data = load_users()
-    
-    # Find the user
-    user_found = False
-    for user in users_data['users']:
-        if user['id'] == user_id:
-            user_found = True
-            # Update only provided fields
-            if name is not None:
-                user['name'] = name
-            if role is not None:
-                user['role'] = role
-            if expiry is not None:
-                user['expiry'] = expiry if expiry else None
-            if password is not None and password:
-                user['password'] = password
-            break
-    
-    if not user_found:
-        return False, "User not found"
-    
-    # Save and return the result from save_users
-    save_success, save_message = save_users(users_data)
-    if save_success:
-        return True, "User updated successfully"
-    else:
-        return False, f"User updated but failed to save: {save_message}"
-
-def is_user_valid(user):
-    """Check if user account is still valid based on expiry date"""
-    if not user.get('expiry'):
-        return True  # No expiry date means valid forever
-    
-    try:
-        from datetime import datetime
-        expiry_date = datetime.fromisoformat(user['expiry'])
-        current_date = datetime.now()
-        return current_date <= expiry_date
-    except:
-        return True  # If there's an error parsing the date, assume valid
-
-def get_user_by_id(user_id):
-    """Get user details by user ID"""
-    users_data = load_users()
-    for user in users_data['users']:
-        if user['id'] == user_id:
-            user['is_valid'] = is_user_valid(user)
-            return user
-    return None
-
-def authenticate_user(user_id, password):
-    """Authenticate user credentials"""
-    users_data = load_users()
-    
-    for user in users_data['users']:
-        if user['id'] == user_id and user['password'] == password:
-            if is_user_valid(user):
-                return user
-            else:
-                return None  # User exists but account expired
-    
-    return None
 
 def add_login_session(user_id):
-    """Record a login session for tracking"""
-    global login_history
-    
-    if user_id not in login_history:
-        login_history[user_id] = []
-    
-    # Create session entry with browser/location info
+    """Record a login session for tracking via Redis"""
     session_entry = {
         'timestamp': datetime.now().isoformat(),
         'ip': request.remote_addr or 'Unknown',
         'user_agent': request.headers.get('User-Agent', 'Unknown'),
         'is_current': True
     }
-    
-    # Mark previous sessions as not current
-    for prev_session in login_history[user_id]:
-        prev_session['is_current'] = False
-    
-    # Add new session
-    login_history[user_id].insert(0, session_entry)
-    
-    # Keep only last 20 sessions
-    if len(login_history[user_id]) > 20:
-        login_history[user_id] = login_history[user_id][:20]
-
-def get_session_details(user_id):
-    """Get session information for a user"""
-    global login_history
-    
-    if user_id not in login_history:
-        return []
-    
-    return login_history[user_id]
+    db.add_login_history(user_id, session_entry)
 
 # Root route - redirect to login
 @app.route('/')
@@ -3376,6 +3528,25 @@ def logout():
     # Redirect to login page
     return redirect(url_for('login'))
 
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    """Central admin dashboard for system monitoring and management"""
+    users = db.get_all_users()
+    total_users = len(users)
+    active_users = len([u for u in users if is_user_valid(u)])
+    admin_users = len([u for u in users if u.get('role') == 'admin'])
+    
+    stats = {
+        'total_users': total_users,
+        'active_users': active_users,
+        'admin_users': admin_users,
+        'redis_connected': db.redis_client is not None
+    }
+    
+    return render_template_string(ADMIN_DASHBOARD_TEMPLATE, stats=stats)
+
+
 @app.route('/add-user', methods=['GET', 'POST'])
 @admin_required
 def add_user_route():
@@ -3383,18 +3554,14 @@ def add_user_route():
         user_id = request.form.get('user_id')
         password = request.form.get('password')
         name = request.form.get('name')
-        role = request.form.get('role', 'user')  # Default to 'user' if not specified
-        expiry = request.form.get('expiry')  # Optional expiry date
+        role = request.form.get('role', 'user')
+        expiry = request.form.get('expiry')
         
         if not user_id or not password or not name:
             return render_template_string(ADD_USER_TEMPLATE, error="All fields are required")
         
         success, message = add_user(user_id, password, name, expiry, role)
-        if success:
-            return render_template_string(ADD_USER_TEMPLATE, success=message)
-        else:
-            return render_template_string(ADD_USER_TEMPLATE, error=message)
-    
+        return render_template_string(ADD_USER_TEMPLATE, success=message if success else None, error=None if success else message)
     return render_template_string(ADD_USER_TEMPLATE)
 
 @app.route('/remove-user', methods=['GET', 'POST'])
@@ -3402,29 +3569,18 @@ def add_user_route():
 def remove_user_route():
     if request.method == 'POST':
         user_id = request.form.get('user_id')
-        
         if not user_id:
-            users_data = load_users()
-            return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'], error="User ID is required")
-        
+            return render_template_string(REMOVE_USER_TEMPLATE, users=db.get_all_users(), error="User ID required")
         success, message = remove_user(user_id)
-        users_data = load_users()
-        if success:
-            return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'], success=message)
-        else:
-            return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'], error=message)
-    
-    users_data = load_users()
-    return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'])
+        return render_template_string(REMOVE_USER_TEMPLATE, users=db.get_all_users(), success=message if success else None, error=None if success else message)
+    return render_template_string(REMOVE_USER_TEMPLATE, users=db.get_all_users())
 
 @app.route('/manage-users')
 @admin_required
 def manage_users():
-    users_data = load_users()
-    # Add validity status to each user
-    for user in users_data['users']:
-        user['is_valid'] = is_user_valid(user)
-    return render_template_string(MANAGE_USERS_TEMPLATE, users=users_data['users'])
+    users = db.get_all_users()
+    for user in users: user['is_valid'] = is_user_valid(user)
+    return render_template_string(MANAGE_USERS_TEMPLATE, users=users)
 
 @app.route('/edit-user/<user_id>', methods=['GET', 'POST'])
 @admin_required
@@ -3434,28 +3590,87 @@ def edit_user_route(user_id):
         role = request.form.get('role')
         expiry = request.form.get('expiry')
         password = request.form.get('password')
-        
-        # Validate required fields
         if not name:
-            user = get_user_by_id(user_id)
-            return render_template_string(EDIT_USER_TEMPLATE, user=user, error="Full name is required"), 400
-        
-        # Call edit_user function
+            return render_template_string(EDIT_USER_TEMPLATE, user=get_user_by_id(user_id), error="Full name is required"), 400
         success, message = edit_user(user_id, name=name, role=role, expiry=expiry, password=password)
-        
-        if success:
-            # Redirect back to manage-users page
-            return redirect(url_for('manage_users'))
-        else:
-            user = get_user_by_id(user_id)
-            return render_template_string(EDIT_USER_TEMPLATE, user=user, error=message), 400
-    
-    # GET request - show edit form
-    user = get_user_by_id(user_id)
-    if not user:
-        return redirect(url_for('manage_users'))
-    
-    return render_template_string(EDIT_USER_TEMPLATE, user=user)
+        if success: return redirect(url_for('manage_users'))
+        return render_template_string(EDIT_USER_TEMPLATE, user=get_user_by_id(user_id), error=message), 400
+    return render_template_string(EDIT_USER_TEMPLATE, user=get_user_by_id(user_id))
+
+# Admin Dashboard Template
+ADMIN_DASHBOARD_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin Dashboard - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+.container{max-width:1100px;margin:28px auto;padding:0 18px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;animation:slideDown 0.4s ease}
+.header h1{font-size:32px;margin:0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;font-weight:800}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-bottom:40px}
+.stat-card{background:var(--card);padding:24px;border-radius:16px;border:1px solid var(--card-border);box-shadow:0 10px 30px rgba(0,0,0,0.3);transition:all 0.3s ease}
+.stat-card:hover{transform:translateY(-5px);border-color:var(--accent)}
+.stat-val{font-size:36px;font-weight:800;color:var(--accent);margin-bottom:4px}
+.stat-label{color:var(--text-muted);font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+.admin-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.action-card{background:var(--card);padding:30px;border-radius:16px;border:1px solid var(--card-border);text-align:center;transition:all 0.3s ease}
+.action-card:hover{transform:translateY(-5px);border-color:var(--gold)}
+.action-icon{font-size:48px;margin-bottom:20px}
+.action-title{font-size:20px;font-weight:700;margin-bottom:12px}
+.action-desc{color:var(--text-muted);font-size:14px;margin-bottom:24px;line-height:1.5}
+.btn{display:inline-block;padding:12px 24px;background:linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%);color:#fff;text-decoration:none;border-radius:10px;font-weight:600;transition:all 0.3s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(167,139,250,0.3)}
+@keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>👑 Admin Dashboard</h1>
+    <a href="/menu" class="btn" style="background:var(--card-border)">🏠 Back to Menu</a>
+  </div>
+  
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-val">{{ stats.total_users }}</div>
+      <div class="stat-label">Total Users</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ stats.active_users }}</div>
+      <div class="stat-label">Valid Accounts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ stats.admin_users }}</div>
+      <div class="stat-label">Administrators</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{% if stats.redis_connected %}✅{% else %}❌{% endif %}</div>
+      <div class="stat-label">Redis Status</div>
+    </div>
+  </div>
+  
+  <div class="admin-actions">
+    <div class="action-card">
+      <div class="action-icon">👥</div>
+      <div class="action-title">Manage Users</div>
+      <div class="action-desc">View all users, check expiry status, and manage roles across the system.</div>
+      <a href="/manage-users" class="btn">Go to User Manager</a>
+    </div>
+    <div class="action-card">
+      <div class="action-icon">➕</div>
+      <div class="action-title">Add New User</div>
+      <div class="action-desc">Quickly create new student accounts with specific duration and roles.</div>
+      <a href="/add-user" class="btn">Create User</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+"""
 
 # Edit User Template
 EDIT_USER_TEMPLATE = """
@@ -4074,7 +4289,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 def get_session_details_api():
     """API endpoint to get session details for the current user"""
     user_id = session.get('user_id')
-    sessions = get_session_details(user_id)
+    sessions = db.get_session_details(user_id)
     
     return jsonify({
         'user_id': user_id,

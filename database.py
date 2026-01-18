@@ -7,6 +7,7 @@ Supports single-session enforcement where logging in on Device B logs out Device
 import redis
 import json
 import os
+import time
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 
@@ -587,15 +588,20 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         modules = len([a for a in attempts if a.get('quiz_type') == 'module'])
         mocks = len([a for a in attempts if a.get('quiz_type') == 'mock'])
         
+        # Calculate attempts completed today
+        today_str = datetime.now().date().isoformat()
+        today_completed = len([a for a in attempts if a.get('timestamp', '').startswith(today_str)])
+        
         return {
             'total_attempts': len(attempts),
             'avg_score': round(total_score / len(attempts), 1) if attempts else 0,
             'modules_completed': modules,
-            'mocks_completed': mocks
+            'mocks_completed': mocks,
+            'today_completed': today_completed
         }
     except Exception as e:
         print(f"❌ Error getting user quiz stats: {e}")
-        return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
+        return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_completed': 0}
 
 
 def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:
@@ -625,3 +631,102 @@ def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:
         print(f"❌ Error deleting quiz attempt: {e}")
         return False
 
+
+# ========== MOCK TIMER FUNCTIONS ==========
+
+def set_mock_timer(user_id: str, quiz_id: str, duration_seconds: int) -> int:
+    """
+    Set an authoritative end timestamp for a mock quiz in Redis.
+    Structure: mock_timer:{uid}:{qid} -> end_timestamp (Unix epoch seconds)
+    
+    Returns:
+        The end timestamp (existing or newly created)
+    """
+    if redis_client is None:
+        return 0
+    
+    try:
+        # Key for this specific mock attempt
+        key = f'mock_timer:{user_id}:{quiz_id}'
+        
+        # Check if timer already exists (Idempotent resume)
+        existing = redis_client.get(key)
+        if existing:
+            return int(existing)
+            
+        # Create new end timestamp
+        end_timestamp = int(time.time()) + duration_seconds
+        
+        # Store with TTL (duration + 2 hours buffer)
+        # We use a string because Redis SET expects string/bytes
+        redis_client.set(key, str(end_timestamp), ex=duration_seconds + 7200)
+        
+        print(f"⏱️ Started server-side mock timer for user '{user_id}', quiz '{quiz_id}'. Ends at: {end_timestamp}")
+        return end_timestamp
+    except Exception as e:
+        print(f"❌ Error setting mock timer: {e}")
+        return 0
+
+def get_mock_timer(user_id: str, quiz_id: str) -> int:
+    """
+    Get remaining seconds for a mock quiz.
+    
+    Returns:
+        Remaining seconds, or -1 if not found, or 0 if expired.
+    """
+    if redis_client is None:
+        return 0
+    
+    try:
+        end_ts = redis_client.get(f'mock_timer:{user_id}:{quiz_id}')
+        if not end_ts:
+            return -1 # Timer doesn't exist
+            
+        remaining = int(end_ts) - int(time.time())
+        return max(0, remaining)
+    except Exception as e:
+        print(f"❌ Error getting mock timer: {e}")
+        return 0
+
+def clear_mock_timer(user_id: str, quiz_id: str) -> bool:
+    """Clear the mock timer after submission"""
+    if redis_client is None:
+        return False
+    try:
+        return bool(redis_client.delete(f'mock_timer:{user_id}:{quiz_id}'))
+    except Exception as e:
+        print(f"❌ Error clearing mock timer: {e}")
+        return False
+# ========== LOGIN HISTORY FUNCTIONS ==========
+
+def add_login_history(user_id: str, session_data: Dict):
+    """
+    Store login history in Redis as a list.
+    Keeps only the 20 most recent logins.
+    """
+    if redis_client is None:
+        return
+    
+    try:
+        key = f'user_login_history:{user_id}'
+        # Push to the front of the list
+        redis_client.lpush(key, json.dumps(session_data))
+        # Keep only the last 20 entries
+        redis_client.ltrim(key, 0, 19)
+    except Exception as e:
+        print(f"❌ Error adding login history: {e}")
+
+def get_session_details(user_id: str) -> List[Dict]:
+    """
+    Get login history for a user from Redis.
+    """
+    if redis_client is None:
+        return []
+    
+    try:
+        key = f'user_login_history:{user_id}'
+        items = redis_client.lrange(key, 0, -1)
+        return [json.loads(item) for item in items]
+    except Exception as e:
+        print(f"❌ Error getting login history: {e}")
+        return []
