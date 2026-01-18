@@ -1967,7 +1967,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('daysUntil').textContent = diffDays > 0 ? diffDays : 0;
   
   const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
-  document.getElementById('examDate').textContent = examDate.toLocaleDateString('en-GB', options).replace(/\//g, '-');
+  document.getElementById('examDate').textContent = examDate.toLocaleDateString('en-GB', options).split('/').join('-');
 
   // 2. Animate Progress Bars
   setTimeout(() => {
