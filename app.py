@@ -148,7 +148,7 @@ def remove_user(user_id):
     """Remove a user via Redis"""
     return (True, "User removed successfully") if db.delete_user(user_id) else (False, "Failed to delete user")
 
-def edit_user(user_id, name=None, role=None, expiry=None, password=None):
+def edit_user(user_id, name=None, role=None, expiry=None, password=None, exam_date=None):
     """Edit an existing user via Redis"""
     user = db.get_user(user_id)
     if not user: return False, "User not found"
@@ -156,6 +156,7 @@ def edit_user(user_id, name=None, role=None, expiry=None, password=None):
     if role is not None: user['role'] = role
     if expiry is not None: user['expiry'] = expiry if expiry else None
     if password is not None and password: user['password'] = password
+    if exam_date is not None: user['exam_date'] = exam_date if exam_date else None
     return (True, "User updated successfully") if db.store_user(user) else (False, "Failed to update user")
 
 def get_user_by_id(user_id):
@@ -1349,8 +1350,23 @@ def menu():
     user_id = session.get('user_id')
     stats = db.get_user_quiz_stats(user_id) if user_id else {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
     
-    # Pass user role and stats to template
-    return render_template_string(MENU_TEMPLATE, files=files, total_files=len(files), debug_modules=len(modules), debug_mocks=len(mocks), session=session, recently_viewed=recently_viewed_items, current_sort=sort_type, user_role=session.get('user_role', 'user'), stats=stats)
+    # Pass everything to template
+    user_data = get_user_by_id(user_id) if user_id else {}
+    exam_date = user_data.get('exam_date', '2025-05-26')
+    
+    return render_template_string(
+        MENU_TEMPLATE, 
+        files=files, 
+        total_files=len(files), 
+        debug_modules=len(modules), 
+        debug_mocks=len(mocks), 
+        session=session, 
+        recently_viewed=recently_viewed_items, 
+        current_sort=sort_type, 
+        user_role=session.get('user_role', 'user'), 
+        stats=stats,
+        exam_date=exam_date
+    )
 
 
 @app.route("/recently-viewed")
@@ -1942,7 +1958,8 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 // CFA Dashboard Logic
 document.addEventListener('DOMContentLoaded', function() {
   // 1. Exam Countdown
-  const examDate = new Date('2025-05-26'); // Exam Date from screenshot
+  const examDateStr = "{{ exam_date }}";
+  const examDate = new Date(examDateStr); 
   const today = new Date();
   const diffTime = examDate - today;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -3315,7 +3332,14 @@ def all_questions_file(filename):
 
     # Determine if this is a mock exam
     is_mock = 'Mock' in os.path.basename(chosen)
-    return render_template_string(ALL_TEMPLATE, questions=questions, total=len(questions), data_source=os.path.basename(chosen), is_mock=is_mock)
+    return render_template_string(
+        ALL_TEMPLATE, 
+        questions=questions, 
+        total=len(questions), 
+        data_source=os.path.basename(chosen), 
+        is_mock=is_mock,
+        user_role=session.get('user_role', 'user')
+    )
 
 
 @app.route("/debug-all-questions/<path:filename>")
@@ -4147,6 +4171,7 @@ def edit_profile():
     if request.method == 'POST':
         name = request.form.get('name')
         password = request.form.get('password')
+        exam_date = request.form.get('exam_date')
         
         # Validate required fields
         if not name:
@@ -4154,7 +4179,7 @@ def edit_profile():
             return render_template_string(USER_PROFILE_TEMPLATE, user=user, error="Full name is required"), 400
         
         # Call edit_user function (admin can edit all, regular users only their own)
-        success, message = edit_user(user_id, name=name, password=password)
+        success, message = edit_user(user_id, name=name, password=password, exam_date=exam_date)
         
         if success:
             # Update session with new name
@@ -4273,6 +4298,12 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
         <div class="field-help">Only enter a new password if you want to change it.</div>
       </div>
       
+      <div class="form-group">
+        <label for="exam_date">Target Exam Date</label>
+        <input type="date" id="exam_date" name="exam_date" value="{{ user.exam_date if user.exam_date else '' }}">
+        <div class="field-help">Setting this date will update the countdown on your dashboard.</div>
+      </div>
+      
       <div class="form-actions">
         <button type="submit" class="btn">💾 Save Changes</button>
         <a href="/menu" class="btn btn-secondary">❌ Cancel</a>
@@ -4308,6 +4339,10 @@ def file(filename):
     # Determine if this is a mock exam or study module
     is_mock = 'Mock' in filename
     is_module = filename.startswith('Module')
+    mode = "mock" if is_mock else "module"
+    
+    # Default time limit (135 mins for mock, 0 for practice)
+    time_limit = 8100 if is_mock else 0
     
     if FilePath and os.path.exists(FilePath) and is_allowed_path(FilePath):
         try:
@@ -4327,7 +4362,11 @@ def file(filename):
         total=len(questions),
         data_source=(os.path.basename(FilePath) if FilePath else "none"),
         is_mock=is_mock,
-        is_module=is_module
+        is_module=is_module,
+        mode=mode,
+        time_limit=time_limit,
+        user_role=session.get('user_role', 'user'),
+        quiz_title=filename
     )
 
 if __name__ == "__main__":
