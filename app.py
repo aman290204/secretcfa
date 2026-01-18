@@ -688,23 +688,93 @@ function submitAnswerAutomatically(choiceId) {
   fbDiv.innerHTML = `<div class="result info">Answer submitted. You can review all answers after completing the exam.</div>`;
 }
 
+// Function to save quiz attempt to server (Redis)
+async function saveAttemptToServer(attemptData) {
+  try {
+    const response = await fetch('/api/save-attempt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(attemptData)
+    });
+    
+    const result = await response.json();
+    if (result.status === 'success') {
+      console.log('✅ Quiz attempt saved with ID:', result.attempt_id);
+    } else {
+      console.warn('⚠️ Failed to save attempt:', result.message);
+    }
+  } catch (error) {
+    console.error('❌ Error saving quiz attempt:', error);
+  }
+}
 
 
 function showFinalResults() {
   // Calculate score (5 marks for correct, 0 for wrong/skipped)
   let correctCount = 0;
+  let wrongCount = 0;
+  let skippedCount = 0;
   let totalScore = 0;
   const maxPossibleScore = total * 5;
   
+  // Build responses array for saving
+  const responses = [];
+  
   currentQuestions.forEach((q, i) => {
-    if (userAnswers[i] && q.correct && userAnswers[i] === q.correct) {
+    const userAnswer = userAnswers[i];
+    const isCorrect = userAnswer && q.correct && userAnswer === q.correct;
+    
+    if (isCorrect) {
       correctCount++;
-      totalScore += 5; // 5 marks for correct answer
+      totalScore += 5;
+    } else if (userAnswer) {
+      wrongCount++;
+    } else {
+      skippedCount++;
     }
-    // 0 marks for wrong or skipped answers
+    
+    // Find answer texts
+    let userAnswerText = 'Not answered';
+    if (userAnswer) {
+      const choice = q.choices.find(c => c.id === userAnswer);
+      userAnswerText = choice ? choice.text.replace(/<[^>]*>/g, '').substring(0, 100) : 'Unknown';
+    }
+    
+    let correctAnswerText = 'N/A';
+    if (q.correct) {
+      const correctChoice = q.choices.find(c => c.id === q.correct);
+      correctAnswerText = correctChoice ? correctChoice.text.replace(/<[^>]*>/g, '').substring(0, 100) : 'Unknown';
+    }
+    
+    responses.push({
+      question_id: q.id,
+      user_answer: userAnswer,
+      correct_answer: q.correct,
+      is_correct: isCorrect,
+      user_answer_text: userAnswerText,
+      correct_answer_text: correctAnswerText
+    });
   });
   
-  const scorePercent = Math.round((totalScore / maxPossibleScore) * 100);
+  const scorePercent = Math.round((correctCount / total) * 100);
+  const timeSpent = Math.floor((Date.now() - start) / 1000);
+  
+  // Save attempt to server
+  saveAttemptToServer({
+    quiz_name: '{{ data_source[:-5] if data_source else "Unknown Quiz" }}',
+    quiz_type: isMock ? 'mock' : 'module',
+    total_questions: total,
+    correct_count: correctCount,
+    wrong_count: wrongCount,
+    skipped_count: skippedCount,
+    score_percent: scorePercent,
+    time_spent_seconds: timeSpent,
+    responses: responses
+  });
+  
+  const displayScore = totalScore;
   
   // Hide quiz card and show results
   document.getElementById('card').style.display = 'none';
@@ -1143,6 +1213,101 @@ def save_quiz_result():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+# ========== QUIZ ATTEMPT RECORDING ROUTES ==========
+
+@app.route("/api/save-attempt", methods=["POST"])
+@login_required
+def save_attempt():
+    """Save a completed quiz attempt with all responses to Redis"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({"status": "error", "message": "Not logged in"}), 401
+        
+        # Prepare attempt data
+        attempt_data = {
+            'quiz_name': data.get('quiz_name', 'Unknown Quiz'),
+            'quiz_type': data.get('quiz_type', 'module'),  # 'module' or 'mock'
+            'total_questions': data.get('total_questions', 0),
+            'correct_count': data.get('correct_count', 0),
+            'wrong_count': data.get('wrong_count', 0),
+            'skipped_count': data.get('skipped_count', 0),
+            'score_percent': data.get('score_percent', 0),
+            'time_spent_seconds': data.get('time_spent_seconds', 0),
+            'responses': data.get('responses', [])  # List of {question_id, user_answer, correct_answer, is_correct}
+        }
+        
+        # Store in Redis
+        attempt_id = db.store_quiz_attempt(user_id, attempt_data)
+        
+        if attempt_id:
+            return jsonify({"status": "success", "attempt_id": attempt_id})
+        else:
+            return jsonify({"status": "error", "message": "Failed to store attempt (Redis may be unavailable)"}), 500
+            
+    except Exception as e:
+        print(f"❌ Error saving attempt: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/my-scores")
+@login_required
+def my_scores():
+    """Display user's quiz scores and history from Redis"""
+    user_id = session.get('user_id')
+    
+    # Get attempts from Redis
+    attempts = db.get_user_quiz_attempts(user_id, limit=50)
+    stats = db.get_user_quiz_stats(user_id)
+    
+    return render_template_string(MY_SCORES_TEMPLATE, 
+                                  attempts=attempts, 
+                                  stats=stats,
+                                  session=session,
+                                  user_role=session.get('user_role', 'user'))
+
+
+@app.route("/attempt/<attempt_id>")
+@login_required
+def view_attempt(attempt_id):
+    """View detailed responses for a specific quiz attempt"""
+    user_id = session.get('user_id')
+    
+    # Get attempt from Redis
+    attempt = db.get_quiz_attempt_by_id(user_id, attempt_id)
+    
+    if not attempt:
+        return render_template_string("""
+            <html><body style="font-family:Inter,Arial;padding:40px;background:#0f1419;color:#f1f5f9;">
+                <h2>Attempt Not Found</h2>
+                <p>This quiz attempt could not be found or has expired.</p>
+                <a href="/my-scores" style="color:#a78bfa;">← Back to My Scores</a>
+            </body></html>
+        """)
+    
+    return render_template_string(ATTEMPT_DETAILS_TEMPLATE, 
+                                  attempt=attempt,
+                                  session=session,
+                                  user_role=session.get('user_role', 'user'))
+
+
+@app.route("/api/delete-attempt/<attempt_id>", methods=["DELETE"])
+@login_required
+def delete_attempt(attempt_id):
+    """Delete a specific quiz attempt"""
+    user_id = session.get('user_id')
+    
+    success = db.delete_quiz_attempt(user_id, attempt_id)
+    
+    if success:
+        return jsonify({"status": "success"})
+    else:
+        return jsonify({"status": "error", "message": "Failed to delete attempt"}), 500
+
+
 # ---------- TEMPLATES ----------
 
 MENU_TEMPLATE = """
@@ -1364,6 +1529,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
   {% endif %}
 
   <div style="display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap">
+    <a href="/my-scores" class="btn btn-primary">📊 My Scores</a>
     <a href="/history" class="btn btn-secondary">📋 Quiz History</a>
     <a href="/recently-viewed" class="btn btn-secondary">👁️ Recently Viewed</a>
   </div>
@@ -1962,6 +2128,270 @@ if (userRole !== 'admin') {
   });
 }
 </script>
+</body>
+</html>
+"""
+
+# My Scores Template - Shows user's quiz attempts with scores
+MY_SCORES_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Scores - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#10b981;--jewel-sapphire:#0ea5e9;--jewel-amethyst:#a78bfa;--jewel-ruby:#f43f5e;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+.container{max-width:1200px;margin:28px auto;padding:0 18px}
+.header{text-align:center;margin-bottom:32px}
+.header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header p{color:var(--text-muted);font-size:14px;margin:0}
+.nav-actions{display:flex;align-items:center;justify-content:center;gap:15px;margin:20px 0;flex-wrap:wrap}
+.btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.3s;border:1px solid var(--glass-border);cursor:pointer}
+.btn-primary{background:linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);color:#fff;border:none;box-shadow:0 4px 15px rgba(139,92,246,0.3)}
+.btn-primary:hover{background:linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);transform:translateY(-2px);box-shadow:0 8px 25px rgba(167,139,250,0.4)}
+.btn-secondary{background:var(--glass-bg);color:var(--text-secondary);border:1px solid var(--glass-border)}
+.btn-secondary:hover{background:rgba(167,139,250,0.15);color:var(--accent-light);border-color:var(--accent);transform:translateY(-2px)}
+.btn-danger{background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;border:none;font-size:12px;padding:6px 12px}
+.btn-danger:hover{transform:translateY(-2px)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin:30px 0}
+.stat-box{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);text-align:center;transition:all 0.3s ease;border:1px solid var(--card-border);position:relative;overflow:hidden}
+.stat-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg, var(--accent), var(--gold))}
+.stat-box:hover{transform:translateY(-5px);box-shadow:0 8px 30px rgba(167,139,250,0.25);border-color:var(--accent)}
+.stat-box .number{font-size:32px;font-weight:800;background:linear-gradient(135deg, var(--accent) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-box .label{font-size:13px;color:var(--text-muted);margin-top:4px}
+.section-title{font-size:22px;font-weight:700;margin:30px 0 20px;padding-bottom:12px;border-bottom:1px solid var(--card-border);color:var(--text-primary)}
+.attempts-table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.attempts-table th,.attempts-table td{padding:16px;text-align:left;border-bottom:1px solid var(--card-border)}
+.attempts-table th{background:rgba(167,139,250,0.15);color:var(--accent-light);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:0.5px}
+.attempts-table tr:hover{background:rgba(167,139,250,0.08)}
+.attempts-table td{color:var(--text-secondary);font-size:14px}
+.score-badge{display:inline-block;padding:6px 12px;border-radius:20px;font-weight:700;font-size:13px}
+.score-high{background:rgba(52,211,153,0.2);color:var(--success)}
+.score-medium{background:rgba(251,191,36,0.2);color:var(--warning)}
+.score-low{background:rgba(248,113,113,0.2);color:var(--danger)}
+.quiz-type{display:inline-block;padding:4px 10px;border-radius:15px;font-size:11px;font-weight:600;text-transform:uppercase}
+.quiz-type.module{background:rgba(14,165,233,0.2);color:var(--jewel-sapphire)}
+.quiz-type.mock{background:rgba(244,63,94,0.2);color:var(--jewel-ruby)}
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty-icon{font-size:64px;margin-bottom:20px;opacity:0.5}
+.filter-tabs{display:flex;gap:10px;margin-bottom:20px}
+.filter-tab{padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-secondary);transition:all 0.2s}
+.filter-tab:hover{border-color:var(--accent);color:var(--accent-light)}
+.filter-tab.active{background:linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);color:#fff;border-color:var(--accent)}
+@media(max-width:768px){.attempts-table{display:block;overflow-x:auto}.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📊 My Scores</h1>
+    <p>Track your quiz performance across all modules and mocks</p>
+  </div>
+  
+  <div class="nav-actions">
+    <a href="/menu" class="btn btn-secondary">🏠 Menu</a>
+    <a href="/history" class="btn btn-secondary">📋 Session History</a>
+  </div>
+  
+  <div class="stats">
+    <div class="stat-box">
+      <div class="number">{{ stats.total_attempts }}</div>
+      <div class="label">Total Attempts</div>
+    </div>
+    <div class="stat-box">
+      <div class="number">{{ stats.avg_score }}%</div>
+      <div class="label">Average Score</div>
+    </div>
+    <div class="stat-box">
+      <div class="number">{{ stats.modules_completed }}</div>
+      <div class="label">Modules Done</div>
+    </div>
+    <div class="stat-box">
+      <div class="number">{{ stats.mocks_completed }}</div>
+      <div class="label">Mocks Done</div>
+    </div>
+  </div>
+  
+  <h2 class="section-title">📝 Recent Attempts</h2>
+  
+  <div class="filter-tabs">
+    <div class="filter-tab active" onclick="filterAttempts('all')">All</div>
+    <div class="filter-tab" onclick="filterAttempts('module')">Modules</div>
+    <div class="filter-tab" onclick="filterAttempts('mock')">Mocks</div>
+  </div>
+  
+  {% if attempts %}
+  <table class="attempts-table" id="attemptsTable">
+    <thead>
+      <tr>
+        <th>Quiz Name</th>
+        <th>Type</th>
+        <th>Score</th>
+        <th>Questions</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for attempt in attempts %}
+      <tr data-type="{{ attempt.quiz_type }}">
+        <td><strong>{{ attempt.quiz_name }}</strong></td>
+        <td><span class="quiz-type {{ attempt.quiz_type }}">{{ attempt.quiz_type }}</span></td>
+        <td>
+          {% if attempt.score_percent >= 70 %}
+          <span class="score-badge score-high">{{ attempt.score_percent }}%</span>
+          {% elif attempt.score_percent >= 50 %}
+          <span class="score-badge score-medium">{{ attempt.score_percent }}%</span>
+          {% else %}
+          <span class="score-badge score-low">{{ attempt.score_percent }}%</span>
+          {% endif %}
+        </td>
+        <td>{{ attempt.correct_count }}/{{ attempt.total_questions }} correct</td>
+        <td>{{ attempt.timestamp[:10] }} {{ attempt.timestamp[11:16] }}</td>
+        <td>
+          <a href="/attempt/{{ attempt.attempt_id }}" class="btn btn-primary" style="font-size:12px;padding:6px 12px">View Details</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <div class="empty-icon">📭</div>
+    <h3>No quiz attempts yet</h3>
+    <p>Complete some quizzes to see your scores here!</p>
+    <a href="/menu" class="btn btn-primary" style="margin-top:20px">Start Practicing</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function filterAttempts(type) {
+  const tabs = document.querySelectorAll('.filter-tab');
+  tabs.forEach(tab => tab.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  const rows = document.querySelectorAll('#attemptsTable tbody tr');
+  rows.forEach(row => {
+    if (type === 'all' || row.dataset.type === type) {
+      row.style.display = '';
+    } else {
+      row.style.display = 'none';
+    }
+  });
+}
+</script>
+</body>
+</html>
+"""
+
+# Attempt Details Template - Shows detailed responses for a specific attempt
+ATTEMPT_DETAILS_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Attempt Details - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+.container{max-width:1000px;margin:28px auto;padding:0 18px}
+.header{text-align:center;margin-bottom:32px}
+.header h1{font-size:28px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header p{color:var(--text-muted);font-size:14px;margin:0}
+.nav-actions{display:flex;align-items:center;justify-content:center;gap:15px;margin:20px 0}
+.btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.3s;border:1px solid var(--glass-border);cursor:pointer}
+.btn-secondary{background:var(--glass-bg);color:var(--text-secondary);border:1px solid var(--glass-border)}
+.btn-secondary:hover{background:rgba(167,139,250,0.15);color:var(--accent-light);border-color:var(--accent)}
+.summary-card{background:var(--card);padding:24px;border-radius:12px;margin-bottom:24px;border:1px solid var(--card-border);display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:20px;text-align:center}
+.summary-item .value{font-size:28px;font-weight:800;background:linear-gradient(135deg, var(--accent) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.summary-item .label{font-size:12px;color:var(--text-muted);margin-top:4px}
+.response-card{background:var(--card);padding:20px;border-radius:12px;margin-bottom:16px;border-left:4px solid var(--muted);border:1px solid var(--card-border);transition:all 0.2s}
+.response-card.correct{border-left-color:var(--success)}
+.response-card.incorrect{border-left-color:var(--danger)}
+.response-card.skipped{border-left-color:var(--warning)}
+.response-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.question-num{font-weight:700;color:var(--accent-light)}
+.status-badge{padding:4px 12px;border-radius:15px;font-size:12px;font-weight:600}
+.status-badge.correct{background:rgba(52,211,153,0.2);color:var(--success)}
+.status-badge.incorrect{background:rgba(248,113,113,0.2);color:var(--danger)}
+.status-badge.skipped{background:rgba(251,191,36,0.2);color:var(--warning)}
+.response-detail{font-size:14px;color:var(--text-secondary);margin-top:8px}
+.response-detail strong{color:var(--text-primary)}
+@media(max-width:768px){.summary-card{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>{{ attempt.quiz_name }}</h1>
+    <p>Attempted on {{ attempt.timestamp[:10] }} at {{ attempt.timestamp[11:16] }}</p>
+  </div>
+  
+  <div class="nav-actions">
+    <a href="/my-scores" class="btn btn-secondary">← Back to My Scores</a>
+    <a href="/menu" class="btn btn-secondary">🏠 Menu</a>
+  </div>
+  
+  <div class="summary-card">
+    <div class="summary-item">
+      <div class="value">{{ attempt.score_percent }}%</div>
+      <div class="label">Score</div>
+    </div>
+    <div class="summary-item">
+      <div class="value">{{ attempt.correct_count }}</div>
+      <div class="label">Correct</div>
+    </div>
+    <div class="summary-item">
+      <div class="value">{{ attempt.wrong_count }}</div>
+      <div class="label">Wrong</div>
+    </div>
+    <div class="summary-item">
+      <div class="value">{{ attempt.skipped_count }}</div>
+      <div class="label">Skipped</div>
+    </div>
+    <div class="summary-item">
+      <div class="value">{{ attempt.total_questions }}</div>
+      <div class="label">Total</div>
+    </div>
+    <div class="summary-item">
+      <div class="value">{{ (attempt.time_spent_seconds // 60) }}m</div>
+      <div class="label">Time Spent</div>
+    </div>
+  </div>
+  
+  <h2 style="color:var(--text-primary);margin:24px 0 16px">📋 Response Details</h2>
+  
+  {% if attempt.responses %}
+    {% for resp in attempt.responses %}
+    <div class="response-card {{ 'correct' if resp.is_correct else ('skipped' if not resp.user_answer else 'incorrect') }}">
+      <div class="response-header">
+        <span class="question-num">Question {{ loop.index }}</span>
+        {% if resp.is_correct %}
+        <span class="status-badge correct">✓ Correct</span>
+        {% elif not resp.user_answer %}
+        <span class="status-badge skipped">○ Skipped</span>
+        {% else %}
+        <span class="status-badge incorrect">✗ Incorrect</span>
+        {% endif %}
+      </div>
+      <div class="response-detail">
+        <strong>Your Answer:</strong> {{ resp.user_answer_text if resp.user_answer_text else 'Not answered' }}
+      </div>
+      {% if not resp.is_correct %}
+      <div class="response-detail">
+        <strong>Correct Answer:</strong> {{ resp.correct_answer_text if resp.correct_answer_text else 'N/A' }}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+  <p style="color:var(--text-muted);text-align:center;padding:40px">No detailed responses recorded for this attempt.</p>
+  {% endif %}
+</div>
 </body>
 </html>
 """

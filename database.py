@@ -450,3 +450,178 @@ def migrate_users_from_json(json_file_path: str) -> int:
     except Exception as e:
         print(f"❌ Error migrating users: {e}")
         return 0
+
+
+# ========== QUIZ ATTEMPT STORAGE FUNCTIONS ==========
+
+def generate_attempt_id() -> str:
+    """Generate a unique attempt ID"""
+    import uuid
+    return str(uuid.uuid4())[:12]
+
+
+def store_quiz_attempt(user_id: str, attempt_data: Dict) -> Optional[str]:
+    """
+    Store a quiz attempt in Redis.
+    
+    Args:
+        user_id: The user ID
+        attempt_data: Dictionary containing:
+            - quiz_name: Name of the quiz/module
+            - quiz_type: 'module' or 'mock'
+            - total_questions: Total number of questions
+            - correct_count: Number of correct answers
+            - wrong_count: Number of wrong answers
+            - skipped_count: Number of skipped questions
+            - score_percent: Score as percentage
+            - time_spent_seconds: Time taken in seconds
+            - responses: List of individual responses
+        
+    Returns:
+        attempt_id if successful, None otherwise
+    """
+    if redis_client is None:
+        return None
+    
+    try:
+        attempt_id = generate_attempt_id()
+        
+        # Add metadata to attempt
+        attempt_data['attempt_id'] = attempt_id
+        attempt_data['user_id'] = user_id
+        attempt_data['timestamp'] = datetime.now().isoformat()
+        
+        # Store attempt with key: quiz_attempt:{user_id}:{attempt_id}
+        redis_client.set(
+            f'quiz_attempt:{user_id}:{attempt_id}',
+            json.dumps(attempt_data)
+        )
+        
+        # Add to user's attempts list (sorted set with timestamp as score for ordering)
+        redis_client.zadd(
+            f'user_attempts:{user_id}',
+            {attempt_id: datetime.now().timestamp()}
+        )
+        
+        print(f"✅ Quiz attempt stored for user '{user_id}': {attempt_data.get('quiz_name')} - {attempt_data.get('score_percent')}%")
+        return attempt_id
+    except Exception as e:
+        print(f"❌ Error storing quiz attempt: {e}")
+        return None
+
+
+def get_user_quiz_attempts(user_id: str, limit: int = 50) -> List[Dict]:
+    """
+    Get all quiz attempts for a user, ordered by most recent first.
+    
+    Args:
+        user_id: The user ID
+        limit: Maximum number of attempts to return (default 50)
+        
+    Returns:
+        List of attempt data dictionaries
+    """
+    if redis_client is None:
+        return []
+    
+    try:
+        # Get attempt IDs from sorted set (most recent first)
+        attempt_ids = redis_client.zrevrange(f'user_attempts:{user_id}', 0, limit - 1)
+        
+        attempts = []
+        for attempt_id in attempt_ids:
+            attempt_data = redis_client.get(f'quiz_attempt:{user_id}:{attempt_id}')
+            if attempt_data:
+                attempts.append(json.loads(attempt_data))
+        
+        return attempts
+    except Exception as e:
+        print(f"❌ Error getting user quiz attempts: {e}")
+        return []
+
+
+def get_quiz_attempt_by_id(user_id: str, attempt_id: str) -> Optional[Dict]:
+    """
+    Get a specific quiz attempt by ID.
+    
+    Args:
+        user_id: The user ID
+        attempt_id: The attempt ID
+        
+    Returns:
+        Attempt data dict if found, None otherwise
+    """
+    if redis_client is None:
+        return None
+    
+    try:
+        attempt_data = redis_client.get(f'quiz_attempt:{user_id}:{attempt_id}')
+        if attempt_data:
+            return json.loads(attempt_data)
+        return None
+    except Exception as e:
+        print(f"❌ Error getting quiz attempt: {e}")
+        return None
+
+
+def get_user_quiz_stats(user_id: str) -> Dict:
+    """
+    Get summary statistics for a user's quiz attempts.
+    
+    Args:
+        user_id: The user ID
+        
+    Returns:
+        Dictionary with stats: total_attempts, avg_score, modules_completed, mocks_completed
+    """
+    if redis_client is None:
+        return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
+    
+    try:
+        attempts = get_user_quiz_attempts(user_id, limit=1000)
+        
+        if not attempts:
+            return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
+        
+        total_score = sum(a.get('score_percent', 0) for a in attempts)
+        modules = len([a for a in attempts if a.get('quiz_type') == 'module'])
+        mocks = len([a for a in attempts if a.get('quiz_type') == 'mock'])
+        
+        return {
+            'total_attempts': len(attempts),
+            'avg_score': round(total_score / len(attempts), 1) if attempts else 0,
+            'modules_completed': modules,
+            'mocks_completed': mocks
+        }
+    except Exception as e:
+        print(f"❌ Error getting user quiz stats: {e}")
+        return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
+
+
+def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:
+    """
+    Delete a specific quiz attempt.
+    
+    Args:
+        user_id: The user ID
+        attempt_id: The attempt ID
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if redis_client is None:
+        return False
+    
+    try:
+        # Delete attempt data
+        redis_client.delete(f'quiz_attempt:{user_id}:{attempt_id}')
+        
+        # Remove from user's attempts list
+        redis_client.zrem(f'user_attempts:{user_id}', attempt_id)
+        
+        print(f"✅ Quiz attempt '{attempt_id}' deleted for user '{user_id}'")
+        return True
+    except Exception as e:
+        print(f"❌ Error deleting quiz attempt: {e}")
+        return False
+
