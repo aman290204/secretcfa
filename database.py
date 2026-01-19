@@ -463,7 +463,8 @@ def generate_attempt_id() -> str:
 
 def store_quiz_attempt(user_id: str, attempt_data: Dict) -> Optional[str]:
     """
-    Store a quiz attempt in Redis.
+    Store a quiz attempt in Redis, replacing any previous attempt for the same quiz.
+    Only keeps the LATEST attempt for each quiz.
     
     Args:
         user_id: The user ID
@@ -485,6 +486,20 @@ def store_quiz_attempt(user_id: str, attempt_data: Dict) -> Optional[str]:
         return None
     
     try:
+        quiz_name = attempt_data.get('quiz_name') or attempt_data.get('quiz_id')
+        
+        # Delete any previous attempts for the same quiz
+        existing_attempts = get_user_quiz_attempts(user_id, limit=1000)
+        for old_attempt in existing_attempts:
+            old_quiz_name = old_attempt.get('quiz_name') or old_attempt.get('quiz_id')
+            if old_quiz_name == quiz_name:
+                old_attempt_id = old_attempt.get('attempt_id')
+                if old_attempt_id:
+                    # Delete the old attempt
+                    redis_client.delete(f'quiz_attempt:{user_id}:{old_attempt_id}')
+                    redis_client.zrem(f'user_attempts:{user_id}', old_attempt_id)
+                    print(f"🔄 Replaced previous attempt for '{quiz_name}'")
+        
         attempt_id = generate_attempt_id()
         
         # Add metadata to attempt

@@ -2599,7 +2599,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 <body>
 <div class="container">
   <div class="header">
-    <h1>📊 My Scores</h1>
+    <h1>🏆 My Scores</h1>
     <p>Track your quiz performance across all modules and mocks</p>
   </div>
   
