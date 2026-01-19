@@ -952,7 +952,7 @@ function showFinalResults() {
   });
   
   const scorePercent = Math.round((correctCount / total) * 100);
-  const timeSpent = Math.floor((Date.now() - start) / 1000);
+  const timeSpent = Math.floor((Date.now() - timerStart) / 1000);
   
   // Save attempt to server with metadata
   saveAttemptToServer({
