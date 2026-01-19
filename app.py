@@ -1730,34 +1730,34 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
   .score-circles{flex-direction:column;gap:20px}
 }
 /* CFA Dashboard Styles */
-.dashboard{background:#f5f7fa;border-radius:16px;padding:24px;margin-bottom:30px;border:1px solid #e1e5eb}
+.dashboard{background:var(--card);border-radius:16px;padding:24px;margin-bottom:30px;border:1px solid var(--card-border)}
 .dashboard-top{display:flex;gap:24px;margin-bottom:24px;align-items:flex-start}
 .countdown-box{background:linear-gradient(135deg, #0A2540 0%, #0052A5 100%);padding:20px;border-radius:12px;min-width:140px;text-align:center;color:#fff;box-shadow:0 4px 15px rgba(0,82,165,0.3)}
 .countdown-number{font-size:48px;font-weight:800;line-height:1}
 .countdown-label{font-size:14px;text-transform:uppercase;margin-top:4px;opacity:0.9}
 .countdown-date{font-size:12px;margin-top:6px;opacity:0.8;display:flex;align-items:center;justify-content:center;gap:4px}
 .progress-section{flex:1}
-.progress-label{font-size:14px;color:#1a202c;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
-.progress-bar-outer{background:var(--glass-bg);height:24px;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.progress-label{font-size:14px;color:var(--text-primary);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
+.progress-bar-outer{background:rgba(255,255,255,0.1);height:24px;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1px solid var(--card-border)}
 .progress-bar-fill{height:100%;border-radius:12px;transition:width 0.5s ease}
 .progress-bar-fill.orange{background:linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)}
 .progress-bar-fill.green{background:linear-gradient(90deg, #2E7D32 0%, #4caf50 100%)}
-.task-section{background:#e3f2fd;border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;border-left:4px solid #0052A5}
+.task-section{background:rgba(0,82,165,0.15);border-radius:12px;padding:16px;display:flex;align-items:center;gap:16px;border-left:4px solid #0052A5}
 .task-icon{font-size:24px}
 .task-info{flex:1}
-.task-title{font-weight:700;color:#1a202c;font-size:15px;margin-bottom:4px}
-.task-meta{font-size:13px;color:#64748b}
+.task-title{font-weight:700;color:var(--text-primary);font-size:15px;margin-bottom:4px}
+.task-meta{font-size:13px;color:var(--text-muted)}
 .task-btn{background:#0052A5;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.2s}
 .task-btn:hover{background:#003d7a;transform:translateY(-2px)}
 .score-circles{display:flex;justify-content:center;gap:40px;padding:20px 0}
 .score-circle{text-align:center}
 .score-ring{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;margin:0 auto 12px;position:relative}
-.score-ring::before{content:'';position:absolute;inset:0;border-radius:50%;border:8px solid #e2e8f0}
-.score-ring.green{border:8px solid #2E7D32;border-color:#2E7D32 #2E7D32 #e2e8f0 #e2e8f0}
-.score-ring.blue{border:8px solid #0052A5;border-color:#0052A5 #0052A5 #e2e8f0 #e2e8f0}
-.score-value{font-size:32px;font-weight:800;color:#1a202c}
-.score-suffix{font-size:14px;color:#64748b;font-weight:600}
-.score-label{font-size:14px;color:#64748b;font-weight:600}
+.score-ring::before{content:'';position:absolute;inset:0;border-radius:50%;border:8px solid rgba(255,255,255,0.1)}
+.score-ring.green{border:8px solid #2E7D32;border-color:#2E7D32 #2E7D32 rgba(255,255,255,0.1) rgba(255,255,255,0.1)}
+.score-ring.blue{border:8px solid #0052A5;border-color:#0052A5 #0052A5 rgba(255,255,255,0.1) rgba(255,255,255,0.1)}
+.score-value{font-size:32px;font-weight:800;color:var(--text-primary)}
+.score-suffix{font-size:14px;color:var(--text-muted);font-weight:600}
+.score-label{font-size:14px;color:var(--text-muted);font-weight:600}
 </style>
 </head>
 <body>
