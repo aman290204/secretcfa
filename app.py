@@ -658,7 +658,7 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
           </div>
           <button type="button" class="btn" id="skip">Skip</button>
           <button type="button" class="btn primary" id="submit">Submit Answer</button>
-          <button type="button" class="btn primary" id="finish" style="display:none;">Finish Exam</button>
+          <button type="button" class="btn primary" id="finish">✅ Finish & Save Score</button>
         </div>
       </div>
     </form>
@@ -804,12 +804,14 @@ function updateProgress() {
   document.getElementById('progressFill').style.width = progressPercent + '%';
   document.getElementById('progressText').textContent = `${answeredCount} of ${total} questions answered`;
   
-  // Show finish button when all questions are answered
+  // Update finish button text based on progress
+  const finishBtn = document.getElementById('finish');
   if (answeredCount === total) {
-    document.getElementById('finish').style.display = 'inline-block';
-    document.getElementById('finish').textContent = IS_MOCK ? '🏁 Finish Exam' : '✅ Finish & Save Score';
+    finishBtn.textContent = '🏁 Finish & Save Score';
+    finishBtn.style.background = 'linear-gradient(135deg, var(--success) 0%, #4caf50 100%)';
   } else {
-    document.getElementById('finish').style.display = 'none';
+    finishBtn.textContent = `✅ Finish (${answeredCount}/${total})`;
+    finishBtn.style.background = 'linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%)';
   }
 }
 
@@ -1120,7 +1122,14 @@ document.getElementById('submit').addEventListener('click', ()=>{
   fbDiv.innerHTML = resultHTML;
 });
 
-document.getElementById('finish').addEventListener('click', ()=>{
+document.getElementById('finish').addEventListener('click', function() {
+  console.log('Finish button clicked!');
+  const answeredCount = questionStatus.filter(status => status).length;
+  if (answeredCount < total) {
+    if (!confirm(`You have only answered ${answeredCount} of ${total} questions. Finish anyway?`)) {
+      return;
+    }
+  }
   showFinalResults();
 });
 
