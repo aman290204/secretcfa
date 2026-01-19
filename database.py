@@ -586,25 +586,29 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         
         total_score = sum(a.get('score_percent', 0) for a in attempts)
         
-        # Count UNIQUE modules and mocks completed (not total attempts)
+        # Count UNIQUE modules and mocks completed (for study plan progress)
         unique_modules = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'module')
         unique_mocks = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'mock')
         
-        # Calculate UNIQUE quizzes completed today
+        # Calculate attempts completed today (total, not unique - for today's practice count)
         today_str = datetime.now().date().isoformat()
-        today_attempts = [a for a in attempts if a.get('timestamp', '').startswith(today_str)]
-        unique_today = set(a.get('quiz_name') or a.get('quiz_id') for a in today_attempts)
+        today_attempts_list = [a for a in attempts if a.get('timestamp', '').startswith(today_str)]
+        today_attempts_count = len(today_attempts_list)  # Total attempts today
+        
+        # Unique modules completed overall (for study plan bar)
+        unique_completed = len(unique_modules) + len(unique_mocks)
         
         return {
             'total_attempts': len(attempts),
             'avg_score': round(total_score / len(attempts), 1) if attempts else 0,
             'modules_completed': len(unique_modules),
             'mocks_completed': len(unique_mocks),
-            'today_completed': len(unique_today)
+            'today_attempts': today_attempts_count,  # Total attempts today
+            'unique_completed': unique_completed  # Unique quizzes for study plan
         }
     except Exception as e:
         print(f"❌ Error getting user quiz stats: {e}")
-        return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_completed': 0}
+        return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0}
 
 
 def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:

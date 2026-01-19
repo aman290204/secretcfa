@@ -1824,18 +1824,18 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
       <div class="progress-section">
         <div class="progress-label">
           <span>Today's Progress</span>
-          <span id="todayProgress">{{ stats.today_completed|default(0) }}/{{ total_files }}</span>
+          <span id="todayProgress">{{ stats.today_attempts|default(0) }} attempts</span>
         </div>
         <div class="progress-bar-outer">
-          <div class="progress-bar-fill orange" id="todayBar" style="width: {{ ((stats.today_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%"></div>
+          <div class="progress-bar-fill orange" id="todayBar" style="width: {{ [stats.today_attempts|default(0) * 10, 100]|min }}%"></div>
         </div>
         
         <div class="progress-label">
           <span>Study Plan Progress</span>
-          <span id="studyProgress">{{ stats.avg_score|default(0) }}%</span>
+          <span id="studyProgress">{{ stats.unique_completed|default(0) }}/{{ total_files }}</span>
         </div>
         <div class="progress-bar-outer">
-          <div class="progress-bar-fill green" id="studyBar" style="width: {{ stats.avg_score|default(0) }}%"></div>
+          <div class="progress-bar-fill green" id="studyBar" style="width: {{ ((stats.unique_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%"></div>
         </div>
         
         <!-- Task Section -->
