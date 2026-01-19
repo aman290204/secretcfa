@@ -1601,7 +1601,21 @@ MENU_TEMPLATE = """
 <style>
 :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh}
-.container{max-width:1200px;margin:28px auto;padding:0 18px}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{position:relative;margin-bottom:32px;animation:slideDown 0.4s ease;padding-right:50px}
 .header-content{text-align:center}
 .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px}
@@ -1761,12 +1775,52 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <div class="header-content">
-      <h1>📚 CFA Level 1 Quiz Menu</h1>
-      <p>Select a module or mock exam to start practicing</p>
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CFA Level 1</h2>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/menu" class="sidebar-item active">
+      <span class="sidebar-item-icon">🏠</span> Home
+    </a>
+    <a href="/menu#studyPlan" class="sidebar-item">
+      <span class="sidebar-item-icon">📅</span> Study Plan
+    </a>
+    <a href="/recently-viewed" class="sidebar-item">
+      <span class="sidebar-item-icon">📚</span> Lessons
+    </a>
+    <a href="/all" class="sidebar-item">
+      <span class="sidebar-item-icon">📇</span> Flashcards
+    </a>
+    <a href="/menu#moduleGrid" class="sidebar-item">
+      <span class="sidebar-item-icon">✍️</span> Practice
+    </a>
+    <a href="/menu#mockGrid" class="sidebar-item">
+      <span class="sidebar-item-icon">🎯</span> Mock Exams
+    </a>
+    <a href="/my-scores" class="sidebar-item">
+      <span class="sidebar-item-icon">📊</span> My Scores
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      Logged in as:
+      <strong>{{ session.user_name }}</strong>
     </div>
+    {% if session.user_role == 'admin' %}
+    <a href="/manage-users" class="sidebar-item" style="padding: 6px 14px; margin-top: 5px; background: rgba(167,139,250,0.1)">
+      <span class="sidebar-item-icon">👥</span> Admin
+    </a>
+    {% endif %}
+    <a href="/logout" class="sidebar-logout">Logout</a>
+  </div>
+</div>
+
+<div class="main-content">
+<div class="container">
+  <div class="header" style="text-align: left; margin-bottom: 24px; padding-right: 0">
+    <h2 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin: 0">Welcome to CFA Program Level I for <span id="welcomeDate">May 2025</span></h2>
+  </div>
     <!-- User info and actions -->
     <div class="user-actions">
       <span class="user-info">👤 Logged in as: <strong>{{ session.user_name }}</strong></span>
@@ -1809,60 +1863,87 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
   {% endfor %}
 
   <!-- CFA-Style Dashboard -->
-  <div class="dashboard">
+  <div class="dashboard" style="background: transparent; border: none; padding: 0">
     <div class="dashboard-top">
-      <!-- Countdown Box - Clickable to change date -->
+      <!-- Calendar Style Countdown -->
       <div class="countdown-box" onclick="document.getElementById('examDatePicker').showPicker ? document.getElementById('examDatePicker').showPicker() : document.getElementById('examDatePicker').click()" style="cursor:pointer" title="Click to change exam date">
-        <div class="countdown-number" id="daysUntil">--</div>
         <div class="countdown-label">Days Until</div>
+        <div class="countdown-number" id="daysUntil">--</div>
         <div class="countdown-date">📅 <span id="examDate">Exam Date</span></div>
         <input type="date" id="examDatePicker" value="{{ exam_date }}" style="position:absolute;opacity:0;pointer-events:none" onchange="updateExamDate(this.value)">
-        <div style="font-size:10px;margin-top:8px;opacity:0.7">✏️ Click to change</div>
       </div>
       
-      <!-- Progress Section -->
+      <!-- Progress Column -->
       <div class="progress-section">
-        <div class="progress-label">
-          <span>Today's Progress</span>
-          <span id="todayProgress">{{ stats.today_attempts|default(0) }} attempts</span>
-        </div>
-        <div class="progress-bar-outer">
-          <div class="progress-bar-fill orange" id="todayBar" style="width: {{ [stats.today_attempts|default(0) * 10, 100]|min }}%"></div>
-        </div>
-        
-        <div class="progress-label">
-          <span>Study Plan Progress</span>
-          <span id="studyProgress">{{ stats.unique_completed|default(0) }}/{{ total_files }}</span>
-        </div>
-        <div class="progress-bar-outer">
-          <div class="progress-bar-fill green" id="studyBar" style="width: {{ ((stats.unique_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%"></div>
-        </div>
-        
-        <!-- Task Section -->
-        <div class="task-section">
-          <div class="task-icon">📝</div>
-          <div class="task-info">
-            <div class="task-title">Practice: Start a Quiz</div>
-            <div class="task-meta">{{ modules|length }} Modules • {{ mocks|length }} Mock Exams Available</div>
+        <div style="display: flex; gap: 30px; margin-bottom: 20px">
+          <div style="flex: 1">
+            <div class="progress-label" style="font-size: 13px; color: #94a3b8">
+              <span>Today's Knowledge Goal</span>
+              <span style="color: #fff">{{ stats.today_attempts|default(0) }}/390 <span style="font-size: 14px">🎯</span></span>
+            </div>
+            <div class="progress-bar-outer" style="height: 14px; background: rgba(255,255,255,0.1); border: none">
+              <div class="progress-bar-fill orange" style="width: {{ [stats.today_attempts|default(0) * 0.25, 100]|min }}%"></div>
+            </div>
           </div>
-          <a href="#mockGrid" class="task-btn">Start Quiz →</a>
+          <div style="flex: 1">
+            <div class="progress-label" style="font-size: 13px; color: #94a3b8">
+              <span>Study Plan Progress</span>
+              <span style="color: #fff">{{ ((stats.unique_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%</span>
+            </div>
+            <div class="progress-bar-outer" style="height: 14px; background: rgba(255,255,255,0.1); border: none">
+              <div class="progress-bar-fill orange" style="width: {{ ((stats.unique_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Practice Card -->
+        <div class="task-section" style="background: rgba(0,82,165,0.1); border-left: none; padding: 16px; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05)">
+          <div class="task-icon" style="color: var(--accent-light); font-size: 20px">📝</div>
+          <div class="task-info">
+            <div class="task-title" style="color: var(--accent-light); font-size: 15px">Practice: Start a Quiz</div>
+            <div class="task-meta" style="color: var(--text-muted); font-size: 12px">{{ modules|length }} Modules • {{ mocks|length }} Mock Exams Available</div>
+          </div>
+          <a href="#mockGrid" class="task-btn" style="background: var(--accent); border-radius: 4px; padding: 8px 16px; font-size: 14px">Start Quiz →</a>
         </div>
       </div>
     </div>
     
-    <!-- Score Circles -->
-    <div class="score-circles">
+    <!-- Three Circular Stats -->
+    <div class="score-circles" style="background: var(--card); padding: 30px; border-radius: 8px; margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); border: 1px solid var(--card-border)">
+      <!-- Percentile Rank -->
       <div class="score-circle">
-        <div class="score-ring green">
-          <span class="score-value">{{ stats.modules_completed|default(0) }}</span>
-        </div>
-        <div class="score-label">Modules Completed</div>
-      </div>
-      <div class="score-circle">
+        <div class="score-label" style="margin-bottom: 20px; color: var(--text-secondary); font-size: 15px">Percentile Rank ⓘ</div>
         <div class="score-ring blue">
-          <span class="score-value">{{ stats.mocks_completed|default(0) }}</span>
+          <svg viewBox="0 0 100 100">
+            <circle class="bg" cx="50" cy="50" r="45"></circle>
+            <circle class="progress" cx="50" cy="50" r="45" style="stroke-dasharray: 283; stroke-dashoffset: {{ 283 - (56 / 100 * 283) }}"></circle>
+          </svg>
+          <div class="score-value">{{ (stats.avg_module_score|default(0) * 0.8 + 20)|int }}<span class="score-suffix">Percentile</span></div>
         </div>
-        <div class="score-label">Mocks Completed</div>
+      </div>
+      
+      <!-- Avg Practice Score -->
+      <div class="score-circle">
+        <div class="score-label" style="margin-bottom: 20px; color: var(--text-secondary); font-size: 15px">Avg. Score on Practice</div>
+        <div class="score-ring green">
+          <svg viewBox="0 0 100 100">
+            <circle class="bg" cx="50" cy="50" r="45"></circle>
+            <circle class="progress" cx="50" cy="50" r="45" style="stroke-dasharray: 283; stroke-dashoffset: {{ 283 - (stats.avg_module_score|default(0) / 100 * 283) }}"></circle>
+          </svg>
+          <div class="score-value">{{ stats.avg_module_score|default(0)|int }}%<span class="score-suffix">% Correct</span></div>
+        </div>
+      </div>
+      
+      <!-- Avg Mock Score -->
+      <div class="score-circle">
+        <div class="score-label" style="margin-bottom: 20px; color: var(--text-secondary); font-size: 15px">Avg. Score on Mock Exams</div>
+        <div class="score-ring purple">
+          <svg viewBox="0 0 100 100">
+            <circle class="bg" cx="50" cy="50" r="45"></circle>
+            <circle class="progress" cx="50" cy="50" r="45" style="stroke-dasharray: 283; stroke-dashoffset: {{ 283 - (stats.avg_mock_score|default(0) / 100 * 283) }}"></circle>
+          </svg>
+          <div class="score-value">{{ stats.avg_mock_score|default(0)|int }}%<span class="score-suffix">% Correct</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1954,7 +2035,8 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
     <p>No quiz files found in the data folder.</p>
   </div>
   {% endif %}
-</div>
+</div> <!-- end container -->
+</div> <!-- end main-content -->
 
 <!-- Session Details Modal -->
 <div id="sessionModal" class="modal-overlay">
@@ -2033,6 +2115,10 @@ function updateExamDate(newDate) {
   
   const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
   examDateEl.textContent = examDate.toLocaleDateString('en-GB', options).split('/').join('-');
+  
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const welcomeDateEl = document.getElementById('welcomeDate');
+  if (welcomeDateEl) welcomeDateEl.textContent = `${monthNames[examDate.getMonth()]} ${examDate.getFullYear()}`;
   
   // Save to server
   fetch('/api/update-exam-date', {
@@ -2556,7 +2642,21 @@ MY_SCORES_TEMPLATE = """
 <style>
 :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh}
-.container{max-width:1200px;margin:28px auto;padding:0 18px}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{text-align:center;margin-bottom:32px}
 .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #0052A5 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .header p{color:var(--text-muted);font-size:14px;margin:0}
@@ -2820,7 +2920,21 @@ HISTORY_TEMPLATE = """
 <style>
 :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh}
-.container{max-width:1200px;margin:28px auto;padding:0 18px}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{text-align:center;margin-bottom:32px}
 .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #0052A5 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .header p{color:var(--text-muted);font-size:14px;margin:0}
@@ -2916,7 +3030,21 @@ RECENTLY_VIEWED_TEMPLATE = """
 <style>
 :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
-.container{max-width:1200px;margin:28px auto;padding:0 18px}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{text-align:center;margin-bottom:32px}
 .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .header p{color:var(--text-muted);font-size:14px;margin:0}
@@ -3448,7 +3576,21 @@ def debug_all_questions_file(filename):
     <style>
     :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
     body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
-    .container{max-width:1200px;margin:28px auto;padding:0 18px}
+    .sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.container{max-width:1000px;margin:24px auto;padding:0 24px}
     .header{text-align:center;margin-bottom:32px}
     .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, var(--accent-light) 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
     .header p{color:var(--muted);font-size:14px;margin:0}

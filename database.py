@@ -613,17 +613,26 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         # Unique modules completed overall (for study plan bar)
         unique_completed = len(unique_modules) + len(unique_mocks)
         
+        # Calculate separate average scores for modules and mocks
+        module_attempts = [a for a in attempts if a.get('quiz_type') == 'module']
+        mock_attempts = [a for a in attempts if a.get('quiz_type') == 'mock']
+        
+        module_avg = round(sum(a.get('score_percent', 0) for a in module_attempts) / len(module_attempts), 1) if module_attempts else 0
+        mock_avg = round(sum(a.get('score_percent', 0) for a in mock_attempts) / len(mock_attempts), 1) if mock_attempts else 0
+        
         return {
             'total_attempts': len(attempts),
             'avg_score': round(total_score / len(attempts), 1) if attempts else 0,
+            'avg_module_score': module_avg,
+            'avg_mock_score': mock_avg,
             'modules_completed': len(unique_modules),
             'mocks_completed': len(unique_mocks),
-            'today_attempts': today_attempts_count,  # Total attempts today
-            'unique_completed': unique_completed  # Unique quizzes for study plan
+            'today_attempts': today_attempts_count,
+            'unique_completed': unique_completed
         }
     except Exception as e:
         print(f"❌ Error getting user quiz stats: {e}")
-        return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0}
+        return {'total_attempts': 0, 'avg_score': 0, 'avg_module_score': 0, 'avg_mock_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0}
 
 
 def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:
