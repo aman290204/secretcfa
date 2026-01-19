@@ -2948,9 +2948,14 @@ def mock_dashboard():
                     score = attempt.get('score_percent', 0) if completed else 0
                     correct = attempt.get('correct_count', 0) if completed else 0
                     
+                    # DISPLAY-ONLY NAME CLEANUP: Strip all leading text before "Mock Exam"
+                    cleaned_name = name
+                    if "Mock Exam" in name:
+                        cleaned_name = name[name.find("Mock Exam"):]
+                    
                     mock_files.append({
                         'name': name,
-                        'display_name': name,
+                        'display_name': cleaned_name,
                         'questions': len(items),
                         'time_limit': time_str,
                         'completed': completed,
@@ -2959,8 +2964,25 @@ def mock_dashboard():
                     })
             except: continue
     
-    # Sort mocks logically (A Session 1, A Session 2, B...)
-    mock_files.sort(key=lambda x: x['name'])
+    # DETERMINISTIC PRIORITY ORDERING
+    def get_mock_sort_key(m):
+        dname = m['display_name']
+        # Priority Group 1: Lettered mocks (A, B)
+        # Match "Mock Exam A Session 1"
+        match_letter = re.search(r'Mock Exam\s+([A-Z])\s+Session\s+(\d+)', dname)
+        if match_letter:
+            return (0, match_letter.group(1), int(match_letter.group(2)))
+        
+        # Priority Group 2: Numbered mocks (1, 2)
+        # Match "Mock Exam 1 Session 1"
+        match_num = re.search(r'Mock Exam\s+(\d+)\s+Session\s+(\d+)', dname)
+        if match_num:
+            return (1, int(match_num.group(1)), int(match_num.group(2)))
+            
+        # Fallback: All other mocks sorted alphabetically at the end
+        return (2, dname, 0)
+
+    mock_files.sort(key=get_mock_sort_key)
     
     total_exams = len(mock_files)
     exams_taken = stats.get('mocks_completed', 0)
