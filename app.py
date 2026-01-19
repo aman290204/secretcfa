@@ -2599,7 +2599,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 <body>
 <div class="container">
   <div class="header">
-    <h1>🏆 My Scores</h1>
+    <h1>⭐ My Scores</h1>
     <p>Track your quiz performance across all modules and mocks</p>
   </div>
   
@@ -4272,6 +4272,26 @@ def update_exam_date_api():
         return jsonify({'success': True, 'exam_date': exam_date})
     else:
         return jsonify({'success': False, 'error': message}), 500
+
+@app.route('/api/clear-my-attempts', methods=['GET', 'POST'])
+@login_required
+def clear_my_attempts():
+    """Clear all quiz attempts for the current user"""
+    user_id = session.get('user_id')
+    
+    try:
+        # Get all attempts and delete them
+        attempts = db.get_user_quiz_attempts(user_id, limit=1000)
+        deleted_count = 0
+        
+        for attempt in attempts:
+            attempt_id = attempt.get('attempt_id')
+            if attempt_id and db.delete_quiz_attempt(user_id, attempt_id):
+                deleted_count += 1
+        
+        return jsonify({'success': True, 'deleted': deleted_count, 'message': f'Deleted {deleted_count} attempts'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/edit-profile', methods=['GET', 'POST'])
 @login_required
