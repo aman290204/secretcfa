@@ -585,19 +585,22 @@ def get_user_quiz_stats(user_id: str) -> Dict:
             return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
         
         total_score = sum(a.get('score_percent', 0) for a in attempts)
-        modules = len([a for a in attempts if a.get('quiz_type') == 'module'])
-        mocks = len([a for a in attempts if a.get('quiz_type') == 'mock'])
         
-        # Calculate attempts completed today
+        # Count UNIQUE modules and mocks completed (not total attempts)
+        unique_modules = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'module')
+        unique_mocks = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'mock')
+        
+        # Calculate UNIQUE quizzes completed today
         today_str = datetime.now().date().isoformat()
-        today_completed = len([a for a in attempts if a.get('timestamp', '').startswith(today_str)])
+        today_attempts = [a for a in attempts if a.get('timestamp', '').startswith(today_str)]
+        unique_today = set(a.get('quiz_name') or a.get('quiz_id') for a in today_attempts)
         
         return {
             'total_attempts': len(attempts),
             'avg_score': round(total_score / len(attempts), 1) if attempts else 0,
-            'modules_completed': modules,
-            'mocks_completed': mocks,
-            'today_completed': today_completed
+            'modules_completed': len(unique_modules),
+            'mocks_completed': len(unique_mocks),
+            'today_completed': len(unique_today)
         }
     except Exception as e:
         print(f"❌ Error getting user quiz stats: {e}")
