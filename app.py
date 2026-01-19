@@ -1431,21 +1431,22 @@ def remove_user_route():
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         if not user_id:
-            users_data = load_users()
-            return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'], error="User ID is required")
+            users = db.get_all_users()
+            return render_template_string(REMOVE_USER_TEMPLATE, users=users, error="User ID is required")
         success, message = remove_user(user_id)
-        users_data = load_users()
-        return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'], success=message if success else None, error=None if success else message)
-    users_data = load_users()
-    return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'])
+        users = db.get_all_users()
+        return render_template_string(REMOVE_USER_TEMPLATE, users=users, success=message if success else None, error=None if success else message)
+    users = db.get_all_users()
+    return render_template_string(REMOVE_USER_TEMPLATE, users=users)
 
 @app.route('/manage-users')
 @admin_required
 def manage_users():
-    users_data = load_users()
-    for user in users_data['users']:
+    users = db.get_all_users()
+    # Add validity status to each user
+    for user in users:
         user['is_valid'] = is_user_valid(user)
-    return render_template_string(MANAGE_USERS_TEMPLATE, users=users_data['users'])
+    return render_template_string(MANAGE_USERS_TEMPLATE, users=users)
 
 @app.route('/edit-user/<user_id>', methods=['GET', 'POST'])
 @admin_required
@@ -2645,18 +2646,42 @@ RECENTLY_VIEWED_TEMPLATE = """
 
 ADD_USER_TEMPLATE = """
 <!doctype html>
-<html><head><title>Add User</title></head>
-<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
-<h1>Add User</h1>
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
-{% if success %}<p style="color:green">{{ success }}</p>{% endif %}
-<form method="POST">
-<input type="text" name="name" placeholder="Name" required><br>
-<input type="text" name="user_id" placeholder="User ID" required><br>
-<input type="password" name="password" placeholder="Password" required><br>
-<select name="role"><option value="user">User</option><option value="admin">Admin</option></select><br>
-<button type="submit">Add User</button>
-</form>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Add User - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.form-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid rgba(167,139,250,0.2);width:90%;max-width:500px}
+.header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
+.header h1{font-size:28px;margin:0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800}
+.form-group{margin-bottom:24px}
+.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:14px}
+.form-group input, .form-group select{width:100%;padding:12px;border:1px solid rgba(167,139,250,0.3);border-radius:8px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:15px;transition:all 0.3s}
+.form-group input:focus{border-color:var(--accent);outline:none;background:rgba(255,255,255,0.08)}
+.btn{padding:12px 24px;background:linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;width:100%;font-size:16px;transition:all 0.3s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(167,139,250,0.4)}
+.error{color:var(--danger);background:rgba(244,63,94,0.15);padding:12px;border-radius:8px;margin-bottom:20px;font-size:14px;border:1px solid rgba(244,63,94,0.3)}
+.success{color:var(--success);background:rgba(52,211,153,0.15);padding:12px;border-radius:8px;margin-bottom:20px;font-size:14px;border:1px solid rgba(52,211,153,0.3)}
+</style>
+</head>
+<body>
+<div class="form-card">
+  <div class="header"><h1>➕ Add New User</h1></div>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="success">{{ success }}</div>{% endif %}
+  <form method="POST">
+    <div class="form-group"><label>Full Name</label><input type="text" name="name" required placeholder="Enter full name"></div>
+    <div class="form-group"><label>User ID</label><input type="text" name="user_id" required placeholder="Enter user ID"></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required placeholder="Enter password"></div>
+    <div class="form-group"><label>Role</label><select name="role"><option value="user">User</option><option value="admin">Administrator</option></select></div>
+    <div class="form-group"><label>Expiry Date (Optional)</label><input type="date" name="expiry"></div>
+    <button type="submit" class="btn">Add User</button>
+  </form>
+  <div style="margin-top:20px;text-align:center"><a href="/manage-users" style="color:var(--accent);text-decoration:none;font-weight:600">← Back to Manage Users</a></div>
+</div>
 </body>
 </html>
 """
@@ -2677,16 +2702,58 @@ REMOVE_USER_TEMPLATE = """
 
 MANAGE_USERS_TEMPLATE = """
 <!doctype html>
-<html><head><title>Manage Users</title></head>
-<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
-<h1>Manage Users</h1>
-<a href="/add-user" style="color:#a78bfa">Add User</a>
-<table border="1">
-<tr><th>ID</th><th>Name</th><th>Role</th><th>Actions</th></tr>
-{% for user in users %}
-<tr><td>{{ user.id }}</td><td>{{ user.name }}</td><td>{{ user.role }}</td><td><a href="/edit-user/{{ user.id }}">Edit</a></td></tr>
-{% endfor %}
-</table>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Manage Users - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+.container{max-width:1100px;margin:28px auto;padding:0 18px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px;flex-wrap:wrap;gap:20px}
+.header h1{font-size:32px;margin:0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800}
+.btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.3s;background:var(--accent);color:#000}
+.user-card{background:var(--card);padding:20px;border-radius:12px;border:1px solid var(--card-border);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.user-name{font-weight:700;font-size:18px;color:var(--text-primary)}
+.user-meta{color:var(--text-secondary);font-size:14px;margin-top:4px}
+.tag{padding:4px 8px;border-radius:4px;font-size:12px;font-weight:700;margin-left:10px}
+.tag-admin{background:var(--accent);color:#000}
+.tag-user{background:var(--card-border);color:var(--text-secondary)}
+.status-valid{color:var(--success)}
+.status-expired{color:var(--danger)}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>👥 Manage Users</h1>
+    <div style="display:flex;gap:12px">
+      <a href="/add-user" class="btn">➕ Add User</a>
+      <a href="/menu" class="btn" style="background:var(--card-border);color:var(--text-primary)">🏠 Menu</a>
+    </div>
+  </div>
+  {% if users %}
+  {% for user in users %}
+  <div class="user-card">
+    <div>
+      <div class="user-name">
+        {{ user.name }}
+        {% if user.role == 'admin' %}<span class="tag tag-admin">ADMIN</span>{% else %}<span class="tag tag-user">USER</span>{% endif %}
+      </div>
+      <div class="user-meta">
+        <strong>ID:</strong> {{ user.id }} | 
+        <strong>Status:</strong> <span class="{% if user.is_valid %}status-valid{% else %}status-expired{% endif %}">{% if user.is_valid %}Valid{% else %}Expired{% endif %}</span>
+        {% if user.expiry %} | <strong>Expires:</strong> {{ user.expiry }}{% endif %}
+      </div>
+    </div>
+    <a href="/edit-user/{{ user.id }}" class="btn" style="background:var(--card-border);color:var(--accent)">✏️ Edit</a>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p style="text-align:center;padding:40px;color:var(--text-muted)">No users found.</p>
+  {% endif %}
+</div>
 </body>
 </html>
 """
