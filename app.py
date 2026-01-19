@@ -1600,6 +1600,186 @@ def delete_attempt(attempt_id):
 
 # ---------- TEMPLATES ----------
 
+PRACTICE_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Practice Dashboard</title>
+<style>
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
+.container{max-width:1100px;margin:24px auto;padding:0 32px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;border-bottom:1px solid var(--card-border);padding-bottom:12px}
+.header h1{font-size:24px;margin:0;font-weight:700;color:var(--text-primary)}
+.reset-link{color:var(--gold);text-decoration:none;font-size:14px;font-weight:600}
+.reset-link:hover{text-decoration:underline}
+.completion-section{margin-bottom:32px}
+.completion-label{font-size:14px;color:var(--text-secondary);margin-bottom:8px;display:block}
+.progress-bar-outer{background:rgba(255,255,255,0.05);height:24px;border-radius:12px;overflow:hidden;border:1px solid var(--card-border)}
+.progress-bar-fill{height:100%;background:rgba(255,255,255,0.1);width:0%;transition:width 0.5s ease}
+.metrics-row{display:flex;gap:1px;background:var(--card-border);border:1px solid var(--card-border);border-radius:8px;overflow:hidden;margin-bottom:40px}
+.metric-box{background:var(--card);padding:24px;flex:1;display:flex;flex-direction:column;justify-content:center}
+.metric-box.large{flex:0 0 200px;text-align:center;border-right:1px solid var(--card-border)}
+.metric-value.large{font-size:48px;font-weight:800;line-height:1;margin-bottom:8px;color:var(--accent-light)}
+.metric-label.large{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.metric-content{border-left:4px solid var(--accent);padding-left:12px}
+.metric-value{font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:4px}
+.metric-label{font-size:12px;color:var(--text-muted)}
+.tabs{display:flex;gap:32px;border-bottom:1px solid var(--card-border);margin-bottom:24px}
+.tab{padding:12px 0;font-size:16px;font-weight:600;color:var(--text-muted);cursor:pointer;position:relative;text-decoration:none}
+.tab.active{color:var(--accent-light)}
+.tab.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:3px;background:var(--accent-light)}
+.topics-table{width:100%;border-collapse:collapse}
+.topics-table th{text-align:left;font-size:12px;text-transform:uppercase;color:var(--text-muted);padding:12px;border-bottom:1px solid var(--card-border)}
+.topics-table td{padding:12px;border-bottom:1px solid var(--card-border);font-size:14px}
+.topic-header{font-weight:700;color:var(--accent-light)}
+.subtopic-item{padding-left:32px !important}
+.subtopic-link{color:var(--text-primary);text-decoration:none}
+.subtopic-link:hover{color:var(--accent-light);text-decoration:underline}
+.text-right{text-align:right}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+@media(max-width:768px){
+  .metrics-row{flex-direction:column}
+  .metric-box.large{flex:none;border-right:none;border-bottom:1px solid var(--card-border)}
+  .main-content{margin-left:0 !important}
+  .sidebar{transform:translateX(-100%)}
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CFA Level 1</h2>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/menu" class="sidebar-item">
+      <span class="sidebar-item-icon">🏠</span> Home
+    </a>
+    <a href="/all" class="sidebar-item">
+      <span class="sidebar-item-icon">📇</span> Flashcards
+    </a>
+    <a href="/practice" class="sidebar-item active">
+      <span class="sidebar-item-icon">📖</span> Practice
+    </a>
+    <a href="/menu#mockGrid" class="sidebar-item">
+      <span class="sidebar-item-icon">🎯</span> Mock Exams
+    </a>
+    <a href="/my-scores" class="sidebar-item">
+      <span class="sidebar-item-icon">📊</span> My Scores
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      Logged in as:
+      <strong>{{ session.user_name }}</strong>
+    </div>
+    <a href="/logout" class="sidebar-logout">Logout</a>
+  </div>
+</div>
+<div class="main-content">
+<div class="container">
+  <div class="header">
+    <div style="display:flex;align-items:center">
+      <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</button>
+      <h1>Dashboard</h1>
+    </div>
+    <a href="#" class="reset-link">Reset Questions</a>
+  </div>
+  <div class="completion-section">
+    <span class="completion-label">Completion</span>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-fill" style="width: {{ completion_percent }}%"></div>
+    </div>
+  </div>
+  <div class="metrics-row">
+    <div class="metric-box large">
+      <div class="metric-value large">{{ avg_correct }}%</div>
+      <div class="metric-label large">Correct</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ questions_taken }} of {{ total_questions }}</div>
+        <div class="metric-label">Questions Taken</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_answer_time }}</div>
+        <div class="metric-label">Avg. Answer Time</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_correct_time }}</div>
+        <div class="metric-label">Avg. Correct Answer Time</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_incorrect_time }}</div>
+        <div class="metric-label">Avg. Incorrect Answer Time</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_session_duration }}</div>
+        <div class="metric-label">Avg. Session Duration</div>
+      </div>
+    </div>
+  </div>
+  <div class="tabs">
+    <a href="#" class="tab active">Question Categories</a>
+    <a href="/reports" class="tab">Reports</a>
+  </div>
+  <table class="topics-table">
+    <thead>
+      <tr>
+        <th>Category Name</th>
+        <th class="text-right">Complete</th>
+        <th class="text-right">% Correct</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for topic in topics %}
+      <tr class="topic-row">
+        <td class="topic-header">{{ topic.name }}</td>
+        <td class="text-right">{{ topic.complete }} of {{ topic.total }}</td>
+        <td class="text-right">{{ topic.percent_correct if topic.percent_correct != '--' else '--' }}{% if topic.percent_correct != '--' %}%{% endif %}</td>
+      </tr>
+      {% for sub in topic.subtopics %}
+      <tr>
+        <td class="subtopic-item"><a href="/{{ sub.name }}" class="subtopic-link">{{ sub.name }}</a></td>
+        <td class="text-right">{{ sub.complete }} of {{ sub.total }}</td>
+        <td class="text-right">{{ sub.percent_correct if sub.percent_correct != '--' else '--' }}{% if sub.percent_correct != '--' %}%{% endif %}</td>
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+</div>
+</body>
+</html>
+"""
+
 MENU_TEMPLATE = """
 <!doctype html>
 <html lang="en">
@@ -1731,7 +1911,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
     <a href="/all" class="sidebar-item">
       <span class="sidebar-item-icon">📇</span> Flashcards
     </a>
-    <a href="/menu#moduleGrid" class="sidebar-item">
+    <a href="/practice" class="sidebar-item">
       <span class="sidebar-item-icon">📖</span> Practice
     </a>
     <a href="/menu#mockGrid" class="sidebar-item">
@@ -1861,7 +2041,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
           <div class="task-title">Practice: Start a Quiz</div>
           <div class="task-meta">{{ modules|length }} Modules Available</div>
         </div>
-        <a href="#moduleGrid" class="task-btn">Start Practice →</a>
+        <a href="/practice" class="task-btn">Start Practice →</a>
       </div>
       <div class="task-section purple">
         <div class="task-icon">🎯</div>
@@ -2026,6 +2206,89 @@ def get_session_details_api():
         'user_name': session.get('user_name'),
         'sessions': sessions
     })
+
+@app.route('/practice')
+@login_required
+def practice_dashboard():
+    user_id = session.get('user_id')
+    stats = db.get_user_quiz_stats(user_id)
+    attempts = db.get_user_quiz_attempts(user_id, limit=1000)
+    
+    # Load all module files to get total questions
+    all_files = []
+    for f in os.listdir(DATA_FOLDER):
+        if f.endswith(".json") and f.startswith("Module"):
+            name = f[:-5]
+            path = os.path.join(DATA_FOLDER, f)
+            try:
+                with open(path, 'r', encoding='utf-8') as jf:
+                    raw = json.load(jf)
+                    items = _find_items_structure(raw)
+                    all_files.append({
+                        'name': name,
+                        'questions': len(items),
+                        'num': get_module_number(name)
+                    })
+            except: continue
+
+    # Topic mapping
+    topics_data = []
+    total_q_all = 0
+    total_c_all = 0
+    
+    for topic_name, (start, end) in MODULE_CATEGORIES.items():
+        topic_modules = [f for f in all_files if start <= f['num'] <= end]
+        topic_total_q = sum(m['questions'] for m in topic_modules)
+        topic_complete_q = 0
+        topic_scores = []
+        
+        subtopics = []
+        for m in topic_modules:
+            # Find latest attempt for this module
+            attempt = next((a for a in attempts if (a.get('quiz_name') == m['name'] or a.get('quiz_id') == m['name'])), None)
+            m_comp = m['questions'] if attempt else 0
+            m_score = attempt.get('score_percent', '--') if attempt else '--'
+            topic_complete_q += m_comp
+            if m_score != '--': topic_scores.append(m_score)
+            
+            subtopics.append({
+                'name': m['name'],
+                'total': m['questions'],
+                'complete': m_comp,
+                'percent_correct': m_score
+            })
+        
+        avg_topic_score = round(sum(topic_scores) / len(topic_scores), 0) if topic_scores else '--'
+        if avg_topic_score != '--': avg_topic_score = int(avg_topic_score)
+
+        topics_data.append({
+            'name': topic_name,
+            'total': topic_total_q,
+            'complete': topic_complete_q,
+            'percent_correct': avg_topic_score,
+            'subtopics': subtopics
+        })
+        total_q_all += topic_total_q
+        total_c_all += topic_complete_q
+
+    # Global metrics
+    avg_correct = stats.get('avg_module_score', 0)
+    questions_taken = total_c_all
+    total_questions = total_q_all
+    completion_percent = round((questions_taken / total_questions * 100), 1) if total_questions > 0 else 0
+    
+    return render_template_string(
+        PRACTICE_TEMPLATE,
+        completion_percent=completion_percent,
+        avg_correct=int(avg_correct),
+        questions_taken=questions_taken,
+        total_questions=total_questions,
+        avg_answer_time="--",
+        avg_correct_time="--",
+        avg_incorrect_time="--",
+        avg_session_duration="--",
+        topics=topics_data
+    )
 
 # Catch-all route - MUST be defined LAST after all specific routes
 @app.route("/<path:filename>")
