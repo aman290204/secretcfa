@@ -1352,7 +1352,10 @@ def menu():
     
     # Pass everything to template
     user_data = get_user_by_id(user_id) if user_id else {}
-    exam_date = user_data.get('exam_date', '2025-05-26')
+    # Default to 6 months from now if no exam date set
+    from datetime import date, timedelta
+    default_exam_date = (date.today() + timedelta(days=180)).isoformat()
+    exam_date = user_data.get('exam_date') or default_exam_date
     
     return render_template_string(
         MENU_TEMPLATE, 
@@ -1779,11 +1782,13 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
   <!-- CFA-Style Dashboard -->
   <div class="dashboard">
     <div class="dashboard-top">
-      <!-- Countdown Box -->
-      <div class="countdown-box">
+      <!-- Countdown Box - Clickable to change date -->
+      <div class="countdown-box" onclick="document.getElementById('examDatePicker').showPicker ? document.getElementById('examDatePicker').showPicker() : document.getElementById('examDatePicker').click()" style="cursor:pointer" title="Click to change exam date">
         <div class="countdown-number" id="daysUntil">--</div>
         <div class="countdown-label">Days Until</div>
         <div class="countdown-date">📅 <span id="examDate">Exam Date</span></div>
+        <input type="date" id="examDatePicker" value="{{ exam_date }}" style="position:absolute;opacity:0;pointer-events:none" onchange="updateExamDate(this.value)">
+        <div style="font-size:10px;margin-top:8px;opacity:0.7">✏️ Click to change</div>
       </div>
       
       <!-- Progress Section -->
@@ -1984,6 +1989,38 @@ function openSessionModal() {
   modal.classList.add('active');
   loadSessionDetails();
 }
+
+// Function to update exam date via AJAX
+function updateExamDate(newDate) {
+  const daysUntilEl = document.getElementById('daysUntil');
+  const examDateEl = document.getElementById('examDate');
+  
+  // Update UI immediately
+  const examDate = new Date(newDate);
+  const today = new Date();
+  const diffTime = examDate - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  daysUntilEl.textContent = diffDays > 0 ? diffDays : 0;
+  
+  const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+  examDateEl.textContent = examDate.toLocaleDateString('en-GB', options).split('/').join('-');
+  
+  // Save to server
+  fetch('/api/update-exam-date', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({exam_date: newDate})
+  }).then(r => r.json()).then(data => {
+    if (data.success) {
+      console.log('Exam date saved successfully');
+    } else {
+      alert('Failed to save exam date: ' + data.error);
+    }
+  }).catch(err => {
+    console.error('Error saving exam date:', err);
+  });
+}
+
 
 function closeSessionModal() {
   const modal = document.getElementById('sessionModal');
@@ -2848,11 +2885,11 @@ RECENTLY_VIEWED_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Recently Viewed - CFA Level 1</title>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#10b981;--jewel-sapphire:#0ea5e9;--jewel-amethyst:#a78bfa;--jewel-ruby:#f43f5e;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
-body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
 .container{max-width:1200px;margin:28px auto;padding:0 18px}
 .header{text-align:center;margin-bottom:32px}
-.header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .header p{color:var(--text-muted);font-size:14px;margin:0}
 .user-actions{display:flex;align-items:center;justify-content:center;gap:15px;margin:20px 0;flex-wrap:wrap}
 .user-info{background:var(--glass-bg);padding:10px 18px;border-radius:50px;font-size:14px;box-shadow:0 4px 15px rgba(167,139,250,0.15);transition:all 0.3s ease;border:1px solid var(--glass-border);color:var(--text-secondary)}
@@ -2938,8 +2975,8 @@ ALL_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>All Questions - CFA Level 1</title>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#10b981;--jewel-sapphire:#0ea5e9;--jewel-amethyst:#a78bfa;--jewel-ruby:#f43f5e;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
-body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;background:var(--glass-bg);backdrop-filter:blur(10px);padding:16px;border-radius:12px;border:1px solid var(--glass-border);animation:slideDown 0.4s ease}
 .exam-title{font-weight:700;font-size:18px;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -3630,11 +3667,11 @@ ADMIN_DASHBOARD_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Admin Dashboard - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
-body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;animation:slideDown 0.4s ease}
-.header h1{font-size:32px;margin:0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;font-weight:800}
+.header h1{font-size:32px;margin:0;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;font-weight:800}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-bottom:40px}
 .stat-card{background:var(--card);padding:24px;border-radius:16px;border:1px solid var(--card-border);box-shadow:0 10px 30px rgba(0,0,0,0.3);transition:all 0.3s ease}
 .stat-card:hover{transform:translateY(-5px);border-color:var(--accent)}
@@ -3705,10 +3742,10 @@ EDIT_USER_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Edit User - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
-body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center}
 .container{max-width:1100px;margin:28px auto;padding:0 18px;width:100%}
-.form-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid rgba(167,139,250,0.2);animation:slideDown 0.5s ease-out;max-width:600px;margin:0 auto}
+.form-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid var(--card-border);animation:slideDown 0.5s ease-out;max-width:600px;margin:0 auto}
 .header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
 .header-icon{font-size:48px}
 .header-content h1{font-size:32px;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;font-weight:800}
@@ -3798,8 +3835,8 @@ LOGIN_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Login - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--muted:#94a3b8;--accent:#a78bfa;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
-body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);color:#0f1724;height:100vh;display:flex;align-items:center;justify-content:center}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);height:100vh;display:flex;align-items:center;justify-content:center}
 .login-container{max-width:450px;width:90%;margin:20px auto;padding:40px;background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;animation: fadeInUp 0.5s ease-out;border:1px solid rgba(167,139,250,0.2)}
 .login-icon{font-size:64px;margin-bottom:20px;animation: bounce 1s ease infinite}
 .login-container h1{font-size:32px;margin:0 0 12px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -3857,10 +3894,10 @@ ADD_USER_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Add User - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#f0f4f8;--card:#fff;--muted:#64748b;--accent:#0b69ff;--success:#10b981;--danger:#ef4444;--warning:#f59e0b}
-body{margin:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:#0f1724}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary)}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
-.login-container{max-width:600px;margin:50px auto;padding:30px;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.1);text-align:center;animation: fadeIn 0.5s ease}
+.login-container{max-width:600px;margin:50px auto;padding:30px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.4);text-align:center;animation: fadeIn 0.5s ease;border:1px solid var(--card-border)}
 .form-group{margin-bottom:24px;text-align:left}
 .form-group label{display:block;margin-bottom:8px;font-weight:600;color:#334155;font-size:15px}
 .form-group input, .form-group select{width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;transition:all 0.3s}
@@ -3946,10 +3983,10 @@ REMOVE_USER_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Remove User - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#f0f4f8;--card:#fff;--muted:#64748b;--accent:#0b69ff;--success:#10b981;--danger:#ef4444;--warning:#f59e0b}
-body{margin:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:#0f1724}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary)}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
-.login-container{max-width:600px;margin:50px auto;padding:30px;background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.1);text-align:center;animation: fadeIn 0.5s ease}
+.login-container{max-width:600px;margin:50px auto;padding:30px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.4);text-align:center;animation: fadeIn 0.5s ease;border:1px solid var(--card-border)}
 .form-group{margin-bottom:24px;text-align:left}
 .form-group label{display:block;margin-bottom:8px;font-weight:600;color:#334155;font-size:15px}
 .form-group input{width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;transition:all 0.3s}
@@ -4045,10 +4082,10 @@ MANAGE_USERS_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Manage Users - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#10b981;--jewel-sapphire:#0ea5e9;--jewel-amethyst:#a78bfa;--jewel-ruby:#f43f5e;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
-body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
-.content-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid rgba(167,139,250,0.2);animation:slideDown 0.5s ease-out}
+.content-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid var(--card-border);animation:slideDown 0.5s ease-out}
 .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;flex-wrap:wrap;gap:20px}
 .header-left{display:flex;align-items:flex-start;gap:20px}
 .header-icon{font-size:56px}
@@ -4162,6 +4199,33 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 </html>
 """
 
+@app.route('/api/update-exam-date', methods=['POST'])
+@login_required
+def update_exam_date_api():
+    """API endpoint to update user's exam date from dashboard"""
+    user_id = session.get('user_id')
+    data = request.get_json()
+    
+    if not data or 'exam_date' not in data:
+        return jsonify({'success': False, 'error': 'exam_date is required'}), 400
+    
+    exam_date = data['exam_date']
+    
+    # Validate date format (YYYY-MM-DD)
+    try:
+        from datetime import datetime
+        datetime.strptime(exam_date, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+    
+    # Update user in Redis
+    success, message = edit_user(user_id, exam_date=exam_date)
+    
+    if success:
+        return jsonify({'success': True, 'exam_date': exam_date})
+    else:
+        return jsonify({'success': False, 'error': message}), 500
+
 @app.route('/edit-profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
@@ -4207,15 +4271,15 @@ USER_PROFILE_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>My Profile - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
-body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center}
 .container{max-width:1100px;margin:28px auto;padding:0 18px;width:100%}
-.profile-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid rgba(167,139,250,0.2);animation:slideDown 0.5s ease-out;max-width:600px;margin:0 auto}
+.profile-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid var(--card-border);animation:slideDown 0.5s ease-out;max-width:600px;margin:0 auto}
 .header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
 .header-icon{font-size:48px}
-.header-content h1{font-size:32px;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;font-weight:800}
+.header-content h1{font-size:32px;margin:0 0 8px 0;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.5px;font-weight:800}
 .header-content p{color:var(--text-secondary);font-size:15px;margin:0}
-.info-section{background:rgba(167,139,250,0.08);border-radius:12px;padding:20px;margin-bottom:24px;border-left:4px solid var(--accent)}
+.info-section{background:rgba(0,82,165,0.15);border-radius:12px;padding:20px;margin-bottom:24px;border-left:4px solid var(--accent)}
 .info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .info-row:last-child{margin-bottom:0}
 .info-label{color:var(--text-secondary);font-weight:600;font-size:14px}
