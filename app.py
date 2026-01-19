@@ -779,6 +779,25 @@ function autoSubmitMock() {
   showFinalResults();
 }
 
+function saveAttemptToServer(attemptData) {
+  // Send quiz attempt data to the server
+  fetch('/api/save-attempt', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(attemptData)
+  }).then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        console.log('Quiz attempt saved successfully:', data.attempt_id);
+      } else {
+        console.error('Failed to save quiz attempt:', data.error);
+      }
+    })
+    .catch(err => {
+      console.error('Error saving quiz attempt:', err);
+    });
+}
+
 function updateProgress() {
   const answeredCount = questionStatus.filter(status => status).length;
   const progressPercent = (answeredCount / total) * 100;
@@ -4198,6 +4217,24 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 </body>
 </html>
 """
+
+@app.route('/api/save-attempt', methods=['POST'])
+@login_required
+def save_attempt_api():
+    """API endpoint to save quiz attempt to Redis"""
+    user_id = session.get('user_id')
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+    
+    # Store attempt in Redis
+    attempt_id = db.store_quiz_attempt(user_id, data)
+    
+    if attempt_id:
+        return jsonify({'success': True, 'attempt_id': attempt_id})
+    else:
+        return jsonify({'success': False, 'error': 'Failed to save attempt'}), 500
 
 @app.route('/api/update-exam-date', methods=['POST'])
 @login_required
