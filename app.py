@@ -1679,7 +1679,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
     <a href="/practice" class="sidebar-item active">
       <span class="sidebar-item-icon">📖</span> Practice
     </a>
-    <a href="/menu#mockGrid" class="sidebar-item">
+    <a href="/mocks" class="sidebar-item">
       <span class="sidebar-item-icon">🎯</span> Mock Exams
     </a>
     <a href="/my-scores" class="sidebar-item">
@@ -1774,6 +1774,197 @@ body.sidebar-collapsed .main-content{margin-left:0}
       {% endfor %}
     </tbody>
   </table>
+</div>
+</div>
+</body>
+</html>
+"""
+
+MOCK_EXAMS_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Mock Exams Dashboard</title>
+<style>
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;display:flex}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
+.container{max-width:1100px;margin:24px auto;padding:0 24px}
+.header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid var(--card-border);padding-bottom:10px}
+.header-left{display:flex;align-items:center;gap:20px}
+.header-left h1{font-size:24px;margin:0;color:var(--text-primary)}
+.top-tabs{display:flex;gap:30px}
+.top-tab{color:var(--text-secondary);text-decoration:none;font-size:14px;padding-bottom:10px;border-bottom:2px solid transparent;transition:all 0.2s}
+.top-tab:hover{color:var(--accent-light)}
+.top-tab.active{color:var(--accent-light);border-bottom-color:var(--accent-light);font-weight:600}
+.dashboard-card{background:var(--card);border:1px solid var(--card-border);border-radius:4px;margin-bottom:20px;overflow:hidden}
+.card-header{padding:12px 20px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--card-border);font-size:14px;color:var(--text-secondary)}
+.card-content{padding:20px}
+.completion-label{display:block;margin-bottom:8px;font-size:14px;color:var(--text-secondary)}
+.progress-bar-outer{width:100%;height:14px;background:rgba(255,255,255,0.1);border-radius:7px;overflow:hidden;margin-bottom:20px}
+.progress-bar-fill{height:100%;background:var(--accent);transition:width 0.5s ease-out}
+.metrics-row{display:flex;align-items:center;gap:0;background:var(--card);border:1px solid var(--card-border);border-radius:4px;margin-bottom:30px;overflow:hidden}
+.metric-box{flex:1;padding:20px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--card-border)}
+.metric-box:last-child{border-right:none}
+.metric-box.large{flex:1.2;background:rgba(255,255,255,0.03);align-items:center;justify-content:center;border-right:2px solid var(--card-border)}
+.metric-value{font-size:18px;font-weight:700;color:var(--text-primary)}
+.metric-value.large{font-size:42px;color:var(--text-primary)}
+.metric-label{font-size:13px;color:var(--text-muted);text-transform:none}
+.metric-label.large{font-size:16px;color:var(--text-muted)}
+.sub-tabs{display:flex;gap:25px;margin-bottom:0;border-bottom:1px solid var(--card-border);padding-left:10px}
+.sub-tab{color:var(--text-secondary);text-decoration:none;font-size:14px;padding:12px 5px;border-bottom:2px solid transparent;transition:all 0.2s}
+.sub-tab:hover{color:var(--accent-light)}
+.sub-tab.active{color:var(--accent-light);border-bottom-color:var(--accent-light);font-weight:600}
+.mocks-table{width:100%;border-collapse:collapse;margin-top:0;background:var(--card)}
+.mocks-table th{text-align:left;padding:12px 20px;font-size:12px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--card-border);font-weight:600}
+.mocks-table td{padding:14px 20px;border-bottom:1px solid var(--card-border);font-size:14px;color:var(--text-secondary)}
+.mock-link{color:var(--accent-light);text-decoration:none}
+.mock-link:hover{text-decoration:underline}
+.status-fulfilled{color:var(--jewel-emerald);font-weight:600}
+.text-right{text-align:right}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+@media(max-width:900px){
+  .metrics-row{flex-direction:column;align-items:stretch}
+  .metric-box{border-right:none;border-bottom:1px solid var(--card-border)}
+  .metric-box.large{border-right:none;border-bottom:2px solid var(--card-border)}
+  .main-content{margin-left:0 !important}
+  .sidebar{transform:translateX(-100%)}
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CFA Level 1</h2>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/menu" class="sidebar-item">
+      <span class="sidebar-item-icon">🏠</span> Home
+    </a>
+    <a href="/all" class="sidebar-item">
+      <span class="sidebar-item-icon">📇</span> Flashcards
+    </a>
+    <a href="/practice" class="sidebar-item">
+      <span class="sidebar-item-icon">📖</span> Practice
+    </a>
+    <a href="/mocks" class="sidebar-item active">
+      <span class="sidebar-item-icon">🎯</span> Mock Exams
+    </a>
+    <a href="/my-scores" class="sidebar-item">
+      <span class="sidebar-item-icon">📊</span> My Scores
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      Logged in as:
+      <strong>{{ session.user_name }}</strong>
+    </div>
+    <a href="/logout" class="sidebar-logout">Logout</a>
+  </div>
+</div>
+<div class="main-content">
+<div class="container">
+  <div class="header-row">
+    <div class="header-left">
+      <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</button>
+      <h1>Mock Exams</h1>
+    </div>
+    <div class="top-tabs">
+      <a href="#" class="top-tab active">Dashboard</a>
+      <a href="#" class="top-tab">Confidence Levels</a>
+      <a href="#" class="top-tab">Notes</a>
+      <a href="#" class="top-tab">Bookmarks</a>
+    </div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">Dashboard</div>
+    <div class="card-content">
+      <div class="completion-section">
+        <span class="completion-label">Completion</span>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-fill" style="width: {{ completion_percent }}%"></div>
+        </div>
+      </div>
+      
+      <div class="metrics-row">
+        <div class="metric-box large">
+          <div class="metric-value large">{{ avg_correct }}%</div>
+          <div class="metric-label large">Correct</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ exams_taken }} of {{ total_exams }}</div>
+          <div class="metric-label">Mock Exams Taken</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ avg_answer_time }}</div>
+          <div class="metric-label">Avg. Answer Time</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ avg_correct_time }}</div>
+          <div class="metric-label">Avg. Correct Answer Time</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ avg_incorrect_time }}</div>
+          <div class="metric-label">Avg. Incorrect Answer Time</div>
+        </div>
+      </div>
+
+      <div class="sub-tabs">
+        <a href="#" class="sub-tab active">Mock Exams</a>
+        <a href="#" class="sub-tab">Reports</a>
+      </div>
+      
+      <table class="mocks-table">
+        <thead>
+          <tr>
+            <th>Mock Exam Name</th>
+            <th>Mock Exam Length</th>
+            <th>Mock Exam Time</th>
+            <th>% Correct</th>
+            <th>Requirement Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mock in mocks %}
+          <tr>
+            <td><a href="/{{ mock.name }}" class="mock-link">{{ mock.display_name }}</a></td>
+            <td>{{ mock.questions }} Questions</td>
+            <td>{{ mock.time_limit }}</td>
+            <td>
+              {% if mock.completed %}
+                {{ mock.score }}% ({{ mock.correct }} / {{ mock.questions }})
+              {% endif %}
+            </td>
+            <td>
+              {% if mock.completed %}
+                <span class="status-fulfilled">Fulfilled</span>
+              {% else %}
+                Not Started
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 </div>
 </body>
@@ -1914,7 +2105,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
     <a href="/practice" class="sidebar-item">
       <span class="sidebar-item-icon">📖</span> Practice
     </a>
-    <a href="/menu#mockGrid" class="sidebar-item">
+    <a href="/mocks" class="sidebar-item">
       <span class="sidebar-item-icon">🎯</span> Mock Exams
     </a>
     <a href="/my-scores" class="sidebar-item">
@@ -2049,7 +2240,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
           <div class="task-title">Mock Exams Available</div>
           <div class="task-meta">{{ mocks|length }} Mock Exams Available</div>
         </div>
-        <a href="#mockGrid" class="task-btn purple">Start Mock →</a>
+        <a href="/mocks" class="task-btn purple">Start Mock →</a>
       </div>
     </div>
   </div>
@@ -2298,6 +2489,68 @@ def practice_dashboard():
         avg_incorrect_time="--",
         avg_session_duration="--",
         topics=topics_data
+    )
+
+@app.route('/mocks')
+@login_required
+def mock_dashboard():
+    user_id = session.get('user_id')
+    stats = db.get_user_quiz_stats(user_id)
+    attempts = db.get_user_quiz_attempts(user_id, limit=1000)
+    
+    mock_files = []
+    for f in os.listdir(DATA_FOLDER):
+        if f.endswith(".json") and ('Mock' in f or f.startswith('Mock')):
+            name = f[:-5]
+            path = os.path.join(DATA_FOLDER, f)
+            try:
+                with open(path, 'r', encoding='utf-8') as jf:
+                    raw = json.load(jf)
+                    items = _find_items_structure(raw)
+                    
+                    # Determine time limit (default 135 mins = 02:15:00)
+                    quiz_meta = raw.get("quiz", {})
+                    time_sec = quiz_meta.get("settings", {}).get("session_time_limit_in_seconds", 8100)
+                    h = time_sec // 3600
+                    m = (time_sec % 3600) // 60
+                    s = time_sec % 60
+                    time_str = f"{h:02d}:{m:02d}:{s:02d}"
+                    
+                    # Find latest attempt
+                    attempt = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
+                    completed = attempt is not None
+                    score = attempt.get('score_percent', 0) if completed else 0
+                    correct = attempt.get('correct_count', 0) if completed else 0
+                    
+                    mock_files.append({
+                        'name': name,
+                        'display_name': name,
+                        'questions': len(items),
+                        'time_limit': time_str,
+                        'completed': completed,
+                        'score': int(score),
+                        'correct': correct
+                    })
+            except: continue
+    
+    # Sort mocks logically (A Session 1, A Session 2, B...)
+    mock_files.sort(key=lambda x: x['name'])
+    
+    total_exams = len(mock_files)
+    exams_taken = stats.get('mocks_completed', 0)
+    avg_correct = stats.get('avg_mock_score', 0)
+    completion_percent = round((exams_taken / total_exams * 100), 1) if total_exams > 0 else 0
+    
+    return render_template_string(
+        MOCK_EXAMS_TEMPLATE,
+        completion_percent=completion_percent,
+        avg_correct=int(avg_correct),
+        exams_taken=exams_taken,
+        total_exams=total_exams,
+        avg_answer_time="--",
+        avg_correct_time="--",
+        avg_incorrect_time="--",
+        mocks=mock_files
     )
 
 # Catch-all route - MUST be defined LAST after all specific routes
