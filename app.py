@@ -534,7 +534,7 @@ TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Quiz Viewer — All Questions</title>
 <style>
-:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:240px}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;background:var(--glass-bg);backdrop-filter:blur(10px);padding:16px;border-radius:12px;border:1px solid var(--glass-border);animation:slideDown 0.4s ease}
@@ -613,6 +613,11 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
   to {opacity: 1; transform: translateY(0);}
 }
 @media(max-width:900px){ .card{padding:14px} }
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -1255,6 +1260,10 @@ if (userRole !== 'admin') {
     if (e.ctrlKey && e.shiftKey && e.key === 'C') { e.preventDefault(); return false; }
   });
 }
+
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-collapsed');
+}
 </script>
 </body>
 </html>
@@ -1599,9 +1608,9 @@ MENU_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>CFA Level 1 - Quiz Menu</title>
 <style>
-:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:240px}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
-.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
 .sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
 .sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
@@ -1614,7 +1623,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
 .sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
 .sidebar-logout:hover{opacity:0.9}
-.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
 .container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{position:relative;margin-bottom:32px;animation:slideDown 0.4s ease;text-align:left}
 .header-content{text-align:left}
@@ -1776,6 +1785,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .score-ring.blue .progress{stroke:var(--accent)}
 .score-ring.green .progress{stroke:var(--success)}
 .score-ring.purple .progress{stroke:var(--jewel-amethyst)}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -1817,8 +1831,8 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 
 <div class="main-content">
 <div class="container">
-  <div class="header" style="text-align: left; margin-bottom: 24px; padding-right: 0">
-    <h2 style="font-size: 26px; font-weight: 700; color: var(--text-primary); margin: 0">Welcome to CFA Program Level I</h2>
+  <div class="header" style="text-align: left; margin-bottom: 24px; padding-right: 0"><div style="display: flex; align-items: center"><button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    <h2 style="font-size: 26px; font-weight: 700; color: var(--text-primary); margin: 0">Welcome to CFA Program Level I</h2></div>
   </div>
     <!-- User info and actions -->
     <div class="user-actions">
@@ -2623,6 +2637,10 @@ if (userRole !== 'admin') {
     if (e.ctrlKey && e.shiftKey && e.key === 'C') { e.preventDefault(); return false; }
   });
 }
+
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-collapsed');
+}
 </script>
 </body>
 </html>
@@ -2637,9 +2655,9 @@ MY_SCORES_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>My Scores - CFA Level 1</title>
 <style>
-:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:240px}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
-.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
 .sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
 .sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
@@ -2652,7 +2670,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
 .sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
 .sidebar-logout:hover{opacity:0.9}
-.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
 .container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{text-align:center;margin-bottom:32px}
 .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #0052A5 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -2691,6 +2709,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .filter-tab:hover{border-color:var(--accent);color:var(--accent-light)}
 .filter-tab.active{background:linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);color:#fff;border-color:var(--accent)}
 @media(max-width:768px){.attempts-table{display:block;overflow-x:auto}.stats{grid-template-columns:repeat(2,1fr)}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -2792,6 +2815,10 @@ function filterAttempts(type) {
     }
   });
 }
+
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-collapsed');
+}
 </script>
 </body>
 </html>
@@ -2832,6 +2859,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .response-detail{font-size:14px;color:var(--text-secondary);margin-top:8px}
 .response-detail strong{color:var(--text-primary)}
 @media(max-width:768px){.summary-card{grid-template-columns:repeat(2,1fr)}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -2915,9 +2947,9 @@ HISTORY_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Quiz History - CFA Level 1</title>
 <style>
-:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:240px}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
-.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
 .sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
 .sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
@@ -2930,7 +2962,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
 .sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
 .sidebar-logout:hover{opacity:0.9}
-.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
 .container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{text-align:center;margin-bottom:32px}
 .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, #0052A5 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -2965,6 +2997,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .completed-badge{background:linear-gradient(135deg, var(--jewel-emerald) 0%, var(--jewel-sapphire) 100%);color:white;padding:4px 8px;border-radius:4px;font-size:12px;margin-left:10px;font-weight:600}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:768px){.grid{grid-template-columns:1fr}.user-actions{flex-direction:column;gap:10px}.btn{width:100%;text-align:center}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -3025,9 +3062,9 @@ RECENTLY_VIEWED_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Recently Viewed - CFA Level 1</title>
 <style>
-:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:240px}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
-.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
 .sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
 .sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
@@ -3040,7 +3077,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
 .sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
 .sidebar-logout:hover{opacity:0.9}
-.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
 .container{max-width:1000px;margin:24px auto;padding:0 24px}
 .header{text-align:center;margin-bottom:32px}
 .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -3075,6 +3112,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .completed-badge{background:linear-gradient(135deg, var(--jewel-emerald) 0%, var(--jewel-sapphire) 100%);color:white;padding:4px 8px;border-radius:4px;font-size:12px;margin-left:10px;font-weight:600}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:768px){.grid{grid-template-columns:1fr}.user-actions{flex-direction:column;gap:10px}.btn{width:100%;text-align:center}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -3129,7 +3171,7 @@ ALL_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>All Questions - CFA Level 1</title>
 <style>
-:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:240px}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;background:var(--glass-bg);backdrop-filter:blur(10px);padding:16px;border-radius:12px;border:1px solid var(--glass-border);animation:slideDown 0.4s ease}
@@ -3197,6 +3239,11 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
 @keyframes fadeIn {from {opacity: 0; transform: translateY(-10px);} to {opacity: 1; transform: translateY(0);}}
 @keyframes slideDown {from {opacity: 0; transform: translateY(-20px);} to {opacity: 1; transform: translateY(0);}}
 @media(max-width:900px){ .card{padding:14px} }
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -3484,6 +3531,10 @@ function hideAllAnswers() {
   // Scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-collapsed');
+}
 </script>
 </body>
 </html>
@@ -3573,7 +3624,7 @@ def debug_all_questions_file(filename):
     <style>
     :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
     body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
-    .sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100}
+    .sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
 .sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
 .sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
@@ -3586,7 +3637,7 @@ def debug_all_questions_file(filename):
 .sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
 .sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
 .sidebar-logout:hover{opacity:0.9}
-.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
 .container{max-width:1000px;margin:24px auto;padding:0 24px}
     .header{text-align:center;margin-bottom:32px}
     .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, var(--accent-light) 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -3601,7 +3652,12 @@ def debug_all_questions_file(filename):
     .question-meta{color:var(--muted);font-size:13px;margin-bottom:15px}
     .debug-info{margin:15px 0;padding:15px;background:rgba(0,82,165,0.15);border:1px solid var(--accent);border-radius:8px;font-family:monospace;font-size:14px;color:var(--text-secondary)}
     .debug-key{font-weight:bold;color:var(--accent-light)}
-    </style>
+    
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
+</style>
     </head>
     <body>
     <div class="container">
@@ -3854,6 +3910,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .btn{display:inline-block;padding:12px 24px;background:linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%);color:#fff;text-decoration:none;border-radius:10px;font-weight:600;transition:all 0.3s}
 .btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(167,139,250,0.3)}
 @keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -3934,6 +3995,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 @keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @media(max-width:600px){.form-card{padding:24px}.header{flex-direction:column;text-align:center}.header-icon{font-size:40px}.header-content h1{font-size:24px}.form-actions{flex-direction:column}.btn{width:100%}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -4023,6 +4089,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
 @keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
 @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -4089,6 +4160,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
   25% {transform: translateX(-5px);}
   75% {transform: translateX(5px);}
 }
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -4184,6 +4260,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
   25% {transform: translateX(-5px);}
   75% {transform: translateX(5px);}
 }
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -4250,7 +4331,7 @@ MANAGE_USERS_TEMPLATE = """
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Manage Users - CFA Level 1 Quiz</title>
 <style>
-:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:240px}
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .content-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid var(--card-border);animation:slideDown 0.5s ease-out}
@@ -4293,6 +4374,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 @keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:768px){.header{flex-direction:column}.header-content h1{font-size:28px}.content-card{padding:24px}.user-item{flex-direction:column;align-items:flex-start}.user-info h3{width:100%}.actions{width:100%;justify-content:flex-start}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
@@ -4507,6 +4593,11 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 @keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @media(max-width:600px){.profile-card{padding:24px}.header{flex-direction:column;text-align:center}.header-icon{font-size:40px}.header-content h1{font-size:24px}.form-actions{flex-direction:column}.btn{width:100%}.info-row{flex-direction:column;align-items:flex-start;gap:8px}}
+
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
 </style>
 </head>
 <body>
