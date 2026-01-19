@@ -568,7 +568,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .explain{margin-top:10px;color:var(--text-muted);background:var(--glass-bg);padding:12px;border-radius:8px;border:1px solid rgba(52,211,153,0.2)}
 .goto{display:flex;gap:6px;align-items:center}
 input[type="radio"]{width:18px;height:18px;margin-top:3px}
-.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;margin-top:16px;overflow:hidden}
+.progress-bar{height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:16px;overflow:hidden;border:1px solid var(--card-border)}
 .progress-fill{height:100%;background:var(--accent);transition:width 0.3s ease}
 .progress-text{font-size:12px;color:var(--muted);margin-top:4px;text-align:right}
 .final-results{background:var(--card);padding:30px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);text-align:center;animation: fadeIn 0.5s ease-in;border:1px solid var(--card-border)}
@@ -584,7 +584,7 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
 .question-review.incorrect{border-left-color:var(--danger);background:rgba(198,40,40,0.1)}
 .question-review.skipped{border-left-color:var(--warning);background:rgba(251,191,36,0.1)}
 .sort-controls{display:flex;gap:10px;align-items:center;margin-bottom:15px;flex-wrap:wrap}
-.sort-label{font-weight:600;color:#334155}
+.sort-label{font-weight:600;color:var(--text-secondary)}
 /* Table styles for HTML content rendering */
 .question-text table, .choice-item table{
   width:100% !important;border-collapse:collapse !important;margin:15px 0 !important;border:1px solid rgba(167,139,250,0.3) !important;font-size:14px;background:var(--glass-bg) !important
@@ -623,8 +623,8 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
       <div style="color:var(--muted);font-size:13px">Source: {{ data_source }} | Mode: {{ mode|capitalize }}</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <a href="/menu" class="btn" style="text-decoration:none;color:#0f1724">🏠 Home</a>
-      <a href="/logout" class="btn" style="text-decoration:none;color:#0f1724">Logout</a>
+      <a href="/menu" class="btn" style="text-decoration:none;color:#fff">🏠 Home</a>
+      <a href="/logout" class="btn" style="text-decoration:none;color:#fff">Logout</a>
       <div class="time-box" id="timer">--:--:--</div>
     </div>
   </div>
@@ -1562,7 +1562,7 @@ def view_attempt(attempt_id):
     
     if not attempt:
         return render_template_string("""
-            <html><body style="font-family:Inter,Arial;padding:40px;background:#0f1419;color:#f1f5f9;">
+            <html><body style="font-family:Inter,Arial;padding:40px;background:#0f1419;color:var(--glass-bg);">
                 <h2>Attempt Not Found</h2>
                 <p>This quiz attempt could not be found or has expired.</p>
                 <a href="/my-scores" style="color:#a78bfa;">← Back to My Scores</a>
@@ -1738,7 +1738,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .countdown-date{font-size:12px;margin-top:6px;opacity:0.8;display:flex;align-items:center;justify-content:center;gap:4px}
 .progress-section{flex:1}
 .progress-label{font-size:14px;color:#1a202c;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between}
-.progress-bar-outer{background:#e2e8f0;height:24px;border-radius:12px;overflow:hidden;margin-bottom:16px}
+.progress-bar-outer{background:var(--glass-bg);height:24px;border-radius:12px;overflow:hidden;margin-bottom:16px}
 .progress-bar-fill{height:100%;border-radius:12px;transition:width 0.5s ease}
 .progress-bar-fill.orange{background:linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)}
 .progress-bar-fill.green{background:linear-gradient(90deg, #2E7D32 0%, #4caf50 100%)}
@@ -3034,7 +3034,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .result.wrong{background:rgba(244,63,94,0.15);border:1px solid rgba(244,63,94,0.4);color:var(--danger)}
 .result.info{background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.4);color:var(--accent-light)}
 .explain{margin-top:10px;color:var(--text-muted);background:var(--glass-bg);padding:12px;border-radius:8px;border:1px solid rgba(52,211,153,0.2)}
-.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;margin-top:16px;overflow:hidden}
+.progress-bar{height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:16px;overflow:hidden;border:1px solid var(--card-border)}
 .progress-fill{height:100%;background:var(--accent);transition:width 0.3s ease}
 .progress-text{font-size:12px;color:var(--muted);margin-top:4px;text-align:right}
 input[type="radio"]{width:18px;height:18px;margin-top:3px}
@@ -3082,8 +3082,8 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
       <div style="color:var(--muted);font-size:13px">Source: {{ data_source }}</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
-      <a href="/menu" class="btn" style="text-decoration:none;color:#0f1724">🏠 Home</a>
-      <a href="/logout" class="btn" style="text-decoration:none;color:#0f1724">Logout</a>
+      <a href="/menu" class="btn" style="text-decoration:none;color:#fff">🏠 Home</a>
+      <a href="/logout" class="btn" style="text-decoration:none;color:#fff">Logout</a>
       <div class="time-box" id="timer">--:--:--</div>
     </div>
   </div>
@@ -3095,7 +3095,7 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
     {% else %}
     <button type="button" class="btn primary" onclick="showAllAnswers()" id="showAllBtn">📋 Show All Answers</button>
     {% endif %}
-    <a href="/menu" class="btn primary" style="text-decoration:none;color:#0f1724">🏠 Back to Menu</a>
+    <a href="/menu" class="btn primary" style="text-decoration:none;color:#fff">🏠 Back to Menu</a>
   </div>
 
   <div id="allQuestionsContainer" style="display:flex;flex-direction:column;gap:20px;margin-bottom:20px">
@@ -3446,22 +3446,22 @@ def debug_all_questions_file(filename):
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <title>Debug All Questions - CFA Level 1</title>
     <style>
-    :root{--bg:#f6f8fb;--card:#fff;--muted:#6b7280;--accent:#0b69ff;--success:#10b981;--danger:#ef4444;--warning:#f59e0b}
-    body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:#0f1724}
+    :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1)}
+    body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, var(--card) 100%);color:var(--text-primary);min-height:100vh}
     .container{max-width:1200px;margin:28px auto;padding:0 18px}
     .header{text-align:center;margin-bottom:32px}
-    .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;color:#0f1724}
+    .header h1{font-size:32px;font-weight:800;margin:0 0 8px 0;background:linear-gradient(135deg, var(--accent-light) 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
     .header p{color:var(--muted);font-size:14px;margin:0}
     .btn{padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.2s;border:none;cursor:pointer}
     .btn-primary{background:var(--accent);color:#fff}
-    .btn-primary:hover{background:#0952cc;transform:translateY(-2px);box-shadow:0 4px 12px rgba(11,105,255,0.2)}
-    .btn-secondary{background:#f1f5f9;color:#0f1724}
-    .btn-secondary:hover{background:#e2e8f0;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-    .question{background:#fff;padding:20px;margin-bottom:20px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.06);position:relative}
-    .question-title{font-weight:700;font-size:16px;margin-bottom:12px;color:#0f1724}
+    .btn-primary:hover{background:var(--accent-dark);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,82,165,0.3)}
+    .btn-secondary{background:var(--glass-bg);color:var(--text-secondary);border:1px solid var(--glass-border)}
+    .btn-secondary:hover{background:rgba(255,255,255,0.1);transform:translateY(-2px)}
+    .question{background:var(--card);padding:20px;margin-bottom:20px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.3);position:relative;border:1px solid var(--card-border)}
+    .question-title{font-weight:700;font-size:16px;margin-bottom:12px;color:var(--text-primary)}
     .question-meta{color:var(--muted);font-size:13px;margin-bottom:15px}
-    .debug-info{margin:15px 0;padding:15px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-family:monospace;font-size:14px}
-    .debug-key{font-weight:bold;color:#0b69ff}
+    .debug-info{margin:15px 0;padding:15px;background:rgba(0,82,165,0.15);border:1px solid var(--accent);border-radius:8px;font-family:monospace;font-size:14px;color:var(--text-secondary)}
+    .debug-key{font-weight:bold;color:var(--accent-light)}
     </style>
     </head>
     <body>
@@ -3928,8 +3928,8 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .login-container{max-width:600px;margin:50px auto;padding:30px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.4);text-align:center;animation: fadeIn 0.5s ease;border:1px solid var(--card-border)}
 .form-group{margin-bottom:24px;text-align:left}
-.form-group label{display:block;margin-bottom:8px;font-weight:600;color:#334155;font-size:15px}
-.form-group input, .form-group select{width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;transition:all 0.3s}
+.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:15px}
+.form-group input, .form-group select{width:100%;padding:14px;border:1px solid var(--card-border);border-radius:10px;font-size:16px;transition:all 0.3s}
 .form-group input:focus, .form-group select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(11,105,255,0.1)}
 .btn{padding:14px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:16px;transition:all 0.3s;margin-top:10px;box-shadow:0 4px 12px rgba(11,105,255,0.2)}
 .btn:hover{background:#0952cc;transform:translateY(-3px);box-shadow:0 8px 20px rgba(11,105,255,0.3)}
@@ -4017,8 +4017,8 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .login-container{max-width:600px;margin:50px auto;padding:30px;background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.4);text-align:center;animation: fadeIn 0.5s ease;border:1px solid var(--card-border)}
 .form-group{margin-bottom:24px;text-align:left}
-.form-group label{display:block;margin-bottom:8px;font-weight:600;color:#334155;font-size:15px}
-.form-group input{width:100%;padding:14px;border:2px solid #e2e8f0;border-radius:10px;font-size:16px;transition:all 0.3s}
+.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:15px}
+.form-group input{width:100%;padding:14px;border:1px solid var(--card-border);border-radius:10px;font-size:16px;transition:all 0.3s}
 .form-group input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(11,105,255,0.1)}
 .btn{padding:14px 24px;background:var(--danger);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;font-size:16px;transition:all 0.3s;margin-right:10px;box-shadow:0 4px 12px rgba(239,68,68,0.2)}
 .btn:hover{background:#dc2626;transform:translateY(-3px);box-shadow:0 8px 20px rgba(239,68,68,0.3)}
@@ -4030,9 +4030,9 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
 .links a{color:var(--accent);text-decoration:none;font-weight:600}
 .links a:hover{text-decoration:underline}
 .user-list{margin-top:30px;text-align:left}
-.user-item{display:flex;justify-content:space-between;align-items:center;padding:20px;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:15px;background:#f8fafc;transition:all 0.3s;animation: fadeIn 0.3s ease}
+.user-item{display:flex;justify-content:space-between;align-items:center;padding:20px;border:1px solid var(--card-border);border-radius:12px;margin-bottom:15px;background:var(--card);transition:all 0.3s;animation: fadeIn 0.3s ease}
 .user-item:hover{box-shadow:0 4px 12px rgba(0,0,0,0.05);transform:translateY(-2px)}
-.user-info h3{margin:0;font-size:18px;color:#0f1724}
+.user-info h3{margin:0;font-size:18px;color:#fff}
 .user-info p{margin:8px 0 0 0;color:var(--muted);font-size:14px}
 .admin-badge{background:#8b5cf6;color:white;padding:4px 10px;border-radius:20px;font-size:12px;margin-left:10px;font-weight:600}
 .header-icon{font-size:48px;margin-bottom:20px}
