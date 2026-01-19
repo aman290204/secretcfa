@@ -1766,7 +1766,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
       </tr>
       {% for sub in topic.subtopics %}
       <tr>
-        <td class="subtopic-item"><a href="/{{ sub.name }}" class="subtopic-link">{{ sub.name }}</a></td>
+        <td class="subtopic-item"><a href="/{{ sub.full_name }}" class="subtopic-link">{{ sub.display_name }}</a></td>
         <td class="text-right">{{ sub.complete }} of {{ sub.total }}</td>
         <td class="text-right">{{ sub.percent_correct if sub.percent_correct != '--' else '--' }}{% if sub.percent_correct != '--' %}%{% endif %}</td>
       </tr>
@@ -2238,21 +2238,31 @@ def practice_dashboard():
     
     for topic_name, (start, end) in MODULE_CATEGORIES.items():
         topic_modules = [f for f in all_files if start <= f['num'] <= end]
+        # Sort topic_modules numerically by 'num'
+        topic_modules.sort(key=lambda x: x['num'])
+        
         topic_total_q = sum(m['questions'] for m in topic_modules)
         topic_complete_q = 0
         topic_scores = []
         
         subtopics = []
-        for m in topic_modules:
+        for i, m in enumerate(topic_modules):
+            full_name = m['name']
+            # Clean display name: remove "Module 123 " prefix
+            clean_name = re.sub(r'^Module\s+\d+\s*', '', full_name).strip()
+            # Prefix with sequence number
+            display_name = f"{i+1}. {clean_name}"
+            
             # Find latest attempt for this module
-            attempt = next((a for a in attempts if (a.get('quiz_name') == m['name'] or a.get('quiz_id') == m['name'])), None)
+            attempt = next((a for a in attempts if (a.get('quiz_name') == full_name or a.get('quiz_id') == full_name)), None)
             m_comp = m['questions'] if attempt else 0
             m_score = attempt.get('score_percent', '--') if attempt else '--'
             topic_complete_q += m_comp
             if m_score != '--': topic_scores.append(m_score)
             
             subtopics.append({
-                'name': m['name'],
+                'full_name': full_name,
+                'display_name': display_name,
                 'total': m['questions'],
                 'complete': m_comp,
                 'percent_correct': m_score
