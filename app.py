@@ -1322,6 +1322,174 @@ def index():
     # Redirect to login page as the default route
     return redirect(url_for('login'))
 
+# Login Routes with JWT Authentication
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page and authentication handler with JWT"""
+    if request.method == 'GET':
+        # Show login form
+        error = request.args.get('error', '')
+        return render_template_string(LOGIN_TEMPLATE, error=error)
+    
+    # POST request - process login
+    user_id = request.form.get('user_id', '').strip()
+    password = request.form.get('password', '').strip()
+    
+    if not user_id or not password:
+        return render_template_string(LOGIN_TEMPLATE, error="Please enter both user ID and password")
+    
+    # Validate credentials
+    user = authenticate_user(user_id, password)
+    
+    if not user:
+        return render_template_string(LOGIN_TEMPLATE, error="Invalid credentials or account expired")
+    
+    # ===== SINGLE-SESSION ENFORCEMENT =====
+    # Step 1: Invalidate all existing sessions for this user (logs out other devices)
+    db.invalidate_all_user_sessions(user_id)
+    print(f"🔐 Logging in user '{user_id}' - invalidated all previous sessions")
+    
+    # Step 2: Generate new session token
+    session_token = secrets.token_urlsafe(32)
+    
+    # Step 3: Store session in Redis with expiration
+    expires_at = datetime.now() + timedelta(days=10)
+    success = db.store_session(
+        user_id=user_id,
+        session_token=session_token,
+        ip_address=request.remote_addr or 'Unknown',
+        user_agent=request.headers.get('User-Agent', 'Unknown'),
+        expires_at=expires_at
+    )
+    
+    if not success:
+        return render_template_string(LOGIN_TEMPLATE, 
+            error="Session storage failed. Please check Redis connection.")
+    
+    # Step 4: Create JWT token with session token embedded
+    jwt_token = create_jwt_token(
+        user_id=user['id'],
+        session_token=session_token,
+        user_name=user.get('name', ''),
+        user_role=user.get('role', 'user')
+    )
+    
+    # Step 5: Store JWT in Flask session (maintains backward compatibility)
+    session['jwt_token'] = jwt_token
+    session['user_id'] = user['id']
+    session['user_name'] = user.get('name', '')
+    session['user_role'] = user.get('role', 'user')
+    session.modified = True
+    
+    print(f"✅ User '{user_id}' logged in successfully")
+    
+    # Redirect to menu for all users
+    return redirect(url_for('menu'))
+
+@app.route('/logout')
+def logout():
+    """Logout and invalidate current session in Redis"""
+    # Get user info before clearing session
+    user_id = session.get('user_id')
+    jwt_token = session.get('jwt_token')
+    
+    # If we have a JWT, extract the session token and delete it from Redis
+    if jwt_token:
+        payload = verify_jwt_token(jwt_token)
+        if payload:
+            session_token = payload.get('tok')
+            if session_token and user_id:
+                # Delete this specific session from Redis
+                db.delete_session(session_token, user_id)
+                print(f"🔓 User '{user_id}' logged out - session invalidated")
+    
+    # Clear Flask session
+    session.clear()
+    session.modified = True
+    
+    # Redirect to login page
+    return redirect(url_for('login'))
+
+@app.route('/add-user', methods=['GET', 'POST'])
+@admin_required
+def add_user_route():
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        password = request.form.get('password')
+        name = request.form.get('name')
+        role = request.form.get('role', 'user')
+        expiry = request.form.get('expiry')
+        if not user_id or not password or not name:
+            return render_template_string(ADD_USER_TEMPLATE, error="All fields are required")
+        success, message = add_user(user_id, password, name, expiry, role)
+        return render_template_string(ADD_USER_TEMPLATE, success=message if success else None, error=None if success else message)
+    return render_template_string(ADD_USER_TEMPLATE)
+
+@app.route('/remove-user', methods=['GET', 'POST'])
+@admin_required
+def remove_user_route():
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        if not user_id:
+            users_data = load_users()
+            return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'], error="User ID is required")
+        success, message = remove_user(user_id)
+        users_data = load_users()
+        return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'], success=message if success else None, error=None if success else message)
+    users_data = load_users()
+    return render_template_string(REMOVE_USER_TEMPLATE, users=users_data['users'])
+
+@app.route('/manage-users')
+@admin_required
+def manage_users():
+    users_data = load_users()
+    for user in users_data['users']:
+        user['is_valid'] = is_user_valid(user)
+    return render_template_string(MANAGE_USERS_TEMPLATE, users=users_data['users'])
+
+@app.route('/edit-user/<user_id>', methods=['GET', 'POST'])
+@admin_required
+def edit_user_route(user_id):
+    if request.method == 'POST':
+        name = request.form.get('name')
+        role = request.form.get('role')
+        expiry = request.form.get('expiry')
+        password = request.form.get('password')
+        if not name:
+            user = get_user_by_id(user_id)
+            return render_template_string(EDIT_USER_TEMPLATE, user=user, error="Full name is required"), 400
+        success, message = edit_user(user_id, name=name, role=role, expiry=expiry, password=password)
+        if success: return redirect(url_for('manage_users'))
+        user = get_user_by_id(user_id)
+        return render_template_string(EDIT_USER_TEMPLATE, user=user, error=message), 400
+    user = get_user_by_id(user_id)
+    if not user: return redirect(url_for('manage_users'))
+    return render_template_string(EDIT_USER_TEMPLATE, user=user)
+
+@app.route('/edit-profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    user_id = session.get('user_id')
+    if request.method == 'POST':
+        name = request.form.get('name')
+        password = request.form.get('password')
+        if not name:
+            user = get_user_by_id(user_id)
+            return render_template_string(USER_PROFILE_TEMPLATE, user=user, error="Full name is required"), 400
+        success, message = edit_user(user_id, name=name, password=password)
+        if success:
+            session['user_name'] = name
+            session.modified = True
+            user = get_user_by_id(user_id)
+            return render_template_string(USER_PROFILE_TEMPLATE, user=user, success="Profile updated successfully!"), 200
+        user = get_user_by_id(user_id)
+        return render_template_string(USER_PROFILE_TEMPLATE, user=user, error=message), 400
+    user = get_user_by_id(user_id)
+    if not user: return redirect(url_for('logout'))
+    return render_template_string(USER_PROFILE_TEMPLATE, user=user)
+
+
+
 @app.route("/menu")
 @login_required
 def menu():
@@ -1599,6 +1767,66 @@ def delete_attempt(attempt_id):
 
 
 # ---------- TEMPLATES ----------
+
+LOGIN_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Login - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--muted:#94a3b8;--accent:#a78bfa;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);color:#0f1724;height:100vh;display:flex;align-items:center;justify-content:center}
+.login-container{max-width:450px;width:90%;margin:20px auto;padding:40px;background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;animation: fadeInUp 0.5s ease-out;border:1px solid rgba(167,139,250,0.2)}
+.login-icon{font-size:64px;margin-bottom:20px;animation: bounce 1s ease infinite}
+.login-container h1{font-size:32px;margin:0 0 12px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.login-container p{color:var(--text-secondary);font-size:16px;margin:0 0 30px 0}
+.form-group{margin-bottom:24px;text-align:left}
+.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:15px}
+.form-group input{width:100%;padding:14px;border:1px solid rgba(167,139,250,0.3);border-radius:10px;font-size:16px;transition:all 0.3s;background:rgba(255,255,255,0.05);color:var(--text-primary)}
+.form-group input::placeholder{color:var(--text-secondary);opacity:0.7}
+.form-group input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(167,139,250,0.2);background:rgba(255,255,255,0.08)}
+.btn{padding:14px 24px;background:linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;width:100%;font-size:16px;transition:all 0.3s;margin-top:10px;box-shadow:0 4px 15px rgba(139,92,246,0.3)}
+.btn:hover{background:linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);transform:translateY(-3px);box-shadow:0 8px 25px rgba(167,139,250,0.4)}
+.error{color:var(--danger);background:rgba(244,63,94,0.15);padding:16px;border-radius:10px;margin-bottom:24px;border:1px solid rgba(244,63,94,0.3);animation: shake 0.5s ease}
+.links{margin-top:24px;font-size:15px}
+.links a{color:var(--accent);text-decoration:none;font-weight:600}
+.links a:hover{color:var(--text-primary);text-decoration:underline}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+</style>
+</head>
+<body>
+<div class="login-container">
+  <div class="login-icon">🔐</div>
+  <h1>Welcome to CFA Level 1 Quiz</h1>
+  <p>Sign in to access your CFA Level 1 Quiz Platform</p>
+  
+  {% if error %}
+  <div class="error {% if 'Another user' in error %}single-user{% endif %}">
+    <div>{{ error }}</div>
+  </div>
+  {% endif %}
+  
+  <form method="POST">
+    <div class="form-group">
+      <label for="user_id">User ID</label>
+      <input type="text" id="user_id" name="user_id" required placeholder="Enter your user ID">
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required placeholder="Enter your password">
+    </div>
+    <button type="submit" class="btn">Sign In</button>
+  </form>
+</div>
+</body>
+</html>
+"""
+
+
 
 PRACTICE_TEMPLATE = """
 <!doctype html>
@@ -2384,6 +2612,137 @@ async function loadSessionDetails() {
 </body>
 </html>
 """
+
+HISTORY_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Quiz History</title>
+<style>
+body{font-family:sans-serif;background:#121212;color:#fff;padding:20px}
+.card{background:#1e293b;padding:15px;margin-bottom:10px;border-radius:8px}
+.btn{display:inline-block;padding:8px 16px;background:#a78bfa;color:#000;text-decoration:none;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>Quiz History</h1>
+<a href="/menu" style="color:#a78bfa">Back to Menu</a>
+{% for attempt in history %}<div class="card"><h3>{{ attempt.quiz_name }}</h3><p>Score: {{ attempt.score_percent }}% | Date: {{ attempt.timestamp }}</p><a href="/view-attempt/{{ attempt.id }}" class="btn">View Details</a></div>{% endfor %}
+</body>
+</html>
+"""
+
+RECENTLY_VIEWED_TEMPLATE = """
+<!doctype html>
+<html><head><title>Recently Viewed</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Recently Viewed</h1>
+{% for item in recently_viewed %}<div><h3>{{ item.name }}</h3><a href="/{{ item.name }}" style="color:#a78bfa">Take Again</a></div>{% endfor %}
+</body>
+</html>
+"""
+
+ADD_USER_TEMPLATE = """
+<!doctype html>
+<html><head><title>Add User</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Add User</h1>
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+{% if success %}<p style="color:green">{{ success }}</p>{% endif %}
+<form method="POST">
+<input type="text" name="name" placeholder="Name" required><br>
+<input type="text" name="user_id" placeholder="User ID" required><br>
+<input type="password" name="password" placeholder="Password" required><br>
+<select name="role"><option value="user">User</option><option value="admin">Admin</option></select><br>
+<button type="submit">Add User</button>
+</form>
+</body>
+</html>
+"""
+
+REMOVE_USER_TEMPLATE = """
+<!doctype html>
+<html><head><title>Remove User</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Remove User</h1>
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+<form method="POST">
+<input type="text" name="user_id" placeholder="User ID" required><br>
+<button type="submit">Remove User</button>
+</form>
+</body>
+</html>
+"""
+
+MANAGE_USERS_TEMPLATE = """
+<!doctype html>
+<html><head><title>Manage Users</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Manage Users</h1>
+<a href="/add-user" style="color:#a78bfa">Add User</a>
+<table border="1">
+<tr><th>ID</th><th>Name</th><th>Role</th><th>Actions</th></tr>
+{% for user in users %}
+<tr><td>{{ user.id }}</td><td>{{ user.name }}</td><td>{{ user.role }}</td><td><a href="/edit-user/{{ user.id }}">Edit</a></td></tr>
+{% endfor %}
+</table>
+</body>
+</html>
+"""
+
+EDIT_USER_TEMPLATE = """
+<!doctype html>
+<html><head><title>Edit User</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Edit User: {{ user.id }}</h1>
+<form method="POST">
+<input type="text" name="name" value="{{ user.name }}" required><br>
+<input type="password" name="password" placeholder="New Password (optional)"><br>
+<select name="role"><option value="user" {% if user.role=='user' %}selected{% endif %}>User</option><option value="admin" {% if user.role=='admin' %}selected{% endif %}>Admin</option></select><br>
+<button type="submit">Update User</button>
+</form>
+</body>
+</html>
+"""
+
+USER_PROFILE_TEMPLATE = """
+<!doctype html>
+<html><head><title>My Profile</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>My Profile</h1>
+{% if success %}<p style="color:green">{{ success }}</p>{% endif %}
+<form method="POST">
+<input type="text" name="name" value="{{ user.name }}" required><br>
+<input type="password" name="password" placeholder="New Password"><br>
+<button type="submit">Update Profile</button>
+</form>
+</body>
+</html>
+"""
+
+MY_SCORES_TEMPLATE = """
+<!doctype html>
+<html><head><title>My Scores</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>My Performance</h1>
+<p>Average Score: {{ stats.avg_score }}%</p>
+<a href="/menu" style="color:#a78bfa">Back to Menu</a>
+</body>
+</html>
+"""
+
+ATTEMPT_DETAILS_TEMPLATE = """
+<!doctype html>
+<html><head><title>Attempt Details</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Attempt: {{ attempt.quiz_name }}</h1>
+<p>Score: {{ attempt.score_percent }}%</p>
+<a href="/my-scores" style="color:#a78bfa">Back to Scores</a>
+</body>
+</html>
+"""
+
 
 @app.route('/api/session-details')
 @login_required
