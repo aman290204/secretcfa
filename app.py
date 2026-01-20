@@ -1001,30 +1001,42 @@ function showFinalResults() {
       skippedCount++;
     }
     
-    // Find answer texts
-    let userAnswerText = 'Not answered';
+    // Build full choice snapshot with labels
+    const choiceLabels = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const choicesSnapshot = (q.choices || []).map((c, ci) => ({
+      id: c.id,
+      label: choiceLabels[ci] || String(ci + 1),
+      text: c.text || '',
+      explanation: (q.feedback && q.feedback[c.id]) ? q.feedback[c.id] : ''
+    }));
+    
+    // Determine user answer label
+    let userAnswerLabel = null;
     if (userAnswer) {
-      const choice = q.choices.find(c => c.id === userAnswer);
-      userAnswerText = choice ? choice.text.replace(/<[^>]*>/g, '').substring(0, 100) : 'Unknown';
+      const userIdx = (q.choices || []).findIndex(c => c.id === userAnswer);
+      userAnswerLabel = userIdx >= 0 ? choiceLabels[userIdx] : null;
     }
     
-    let correctAnswerText = 'N/A';
+    // Determine correct answer label
+    let correctAnswerLabel = null;
     if (q.correct) {
-      const correctChoice = q.choices.find(c => c.id === q.correct);
-      correctAnswerText = correctChoice ? correctChoice.text.replace(/<[^>]*>/g, '').substring(0, 100) : 'Unknown';
+      const correctIdx = (q.choices || []).findIndex(c => c.id === q.correct);
+      correctAnswerLabel = correctIdx >= 0 ? choiceLabels[correctIdx] : null;
     }
     
     responses.push({
+      question_number: i + 1,
       question_id: q.id,
-      question_index: i,
-      selected_option: userAnswer,
-      user_answer: userAnswer,
+      question_text: q.stem || q.title || '',
+      choices: choicesSnapshot,
       correct_answer: q.correct,
+      correct_answer_label: correctAnswerLabel,
+      user_answer: userAnswer,
+      user_answer_label: userAnswerLabel,
       is_correct: isCorrect,
       time_spent_seconds: questionTimes[i] + Math.floor((Date.now() - questionTimeStart) / 1000),
       flagged: questionFlags[i],
-      user_answer_text: userAnswerText,
-      correct_answer_text: correctAnswerText
+      general_feedback: (q.feedback && q.feedback.general) ? q.feedback.general : ''
     });
   });
   
@@ -1764,6 +1776,43 @@ def save_attempt():
         print(f"❌ Error saving attempt: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@app.route("/api/clear-my-attempts", methods=["POST"])
+@login_required
+def clear_my_attempts():
+    """Clear all quiz attempts for the current user"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"status": "error", "message": "Not logged in"}), 401
+        
+        # Get all attempt IDs for this user
+        if db.redis_client:
+            attempt_ids = db.redis_client.zrange(f'user_attempts:{user_id}', 0, -1)
+            deleted_count = 0
+            
+            # Delete each attempt
+            for attempt_id in attempt_ids:
+                if isinstance(attempt_id, bytes):
+                    attempt_id = attempt_id.decode('utf-8')
+                db.redis_client.delete(f'quiz_attempt:{user_id}:{attempt_id}')
+                deleted_count += 1
+            
+            # Clear the user's attempts list
+            db.redis_client.delete(f'user_attempts:{user_id}')
+            
+            return jsonify({
+                "status": "success",
+                "message": f"Cleared {deleted_count} attempts",
+                "deleted_count": deleted_count
+            })
+        else:
+            return jsonify({"status": "error", "message": "Redis not available"}), 500
+            
+    except Exception as e:
+        print(f"❌ Error clearing attempts: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/api/mock/timer-status")
 @login_required
 def mock_timer_status():
@@ -1809,50 +1858,23 @@ def my_scores():
 @app.route("/review-attempt/<attempt_id>")
 @login_required
 def review_attempt(attempt_id):
-    """Review a specific attempt with question-by-question breakdown"""
+    """Review a specific attempt with question-by-question breakdown - renders from stored snapshot only"""
     user_id = session.get('user_id')
     
-    # Get attempt from Redis
+    # Get attempt from Redis - contains full question snapshots
     attempt = db.get_quiz_attempt_by_id(user_id, attempt_id)
     
     if not attempt:
         return redirect(url_for('my_scores'))
     
-    # Get the original quiz questions for full context
-    quiz_name = attempt.get('quiz_name') or attempt.get('quiz_id')
-    quiz_path = os.path.join(DATA_FOLDER, quiz_name + '.json')
-    
-    original_questions = []
-    if os.path.exists(quiz_path):
-        try:
-            with open(quiz_path, 'r', encoding='utf-8') as f:
-                raw = json.load(f)
-                original_questions = _find_items_structure(raw)
-        except:
-            pass
-    
-    # Build question map for quick lookup
-    question_map = {q.get('id'): q for q in original_questions}
-    
-    # Enrich responses with full question data
+    # Responses already contain full question data (stored at submission time)
     responses = attempt.get('responses', [])
-    enriched_responses = []
-    for resp in responses:
-        q_id = resp.get('question_id')
-        q_data = question_map.get(q_id, {})
-        
-        enriched_responses.append({
-            **resp,
-            'stem': q_data.get('stem') or q_data.get('title', ''),
-            'choices': q_data.get('choices', []),
-            'feedback': q_data.get('feedback', {})
-        })
     
     is_mock = attempt.get('quiz_type') == 'mock' or attempt.get('mode') == 'mock'
     
     return render_template_string(REVIEW_ATTEMPT_TEMPLATE,
                                   attempt=attempt,
-                                  responses=enriched_responses,
+                                  responses=responses,
                                   is_mock=is_mock,
                                   session=session)
 
@@ -3033,28 +3055,40 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
 .summary{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px}
 .summary-item{font-size:14px;color:var(--text-secondary)}
 .summary-item strong{color:var(--text-primary)}
-.question-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:24px;margin-bottom:20px}
+.question-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;margin-bottom:20px;overflow:hidden}
 .question-card.correct{border-left:4px solid var(--success)}
 .question-card.incorrect{border-left:4px solid var(--danger)}
 .question-card.skipped{border-left:4px solid var(--text-muted)}
-.q-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.q-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:rgba(255,255,255,0.02);cursor:pointer}
+.q-header:hover{background:rgba(255,255,255,0.04)}
 .q-num{font-size:14px;font-weight:700;color:var(--accent)}
-.q-meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted)}
+.q-meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted);align-items:center}
 .q-flag{color:var(--warning)}
 .q-time{color:var(--text-secondary)}
-.q-stem{font-size:15px;line-height:1.6;margin-bottom:20px}
-.choice{padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:14px;border:1px solid var(--card-border)}
-.choice.user-selected{border-color:var(--accent);background:rgba(167,139,250,0.1)}
-.choice.correct-answer{border-color:var(--success);background:rgba(52,211,153,0.1)}
-.choice.user-selected.incorrect{border-color:var(--danger);background:rgba(248,113,113,0.1)}
-.choice-label{font-weight:700;margin-right:8px}
 .result-badge{padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600}
 .result-correct{background:rgba(52,211,153,0.2);color:var(--success)}
 .result-incorrect{background:rgba(248,113,113,0.2);color:var(--danger)}
 .result-skipped{background:rgba(148,163,184,0.2);color:var(--text-muted)}
-.explanation{margin-top:16px;padding:16px;background:rgba(167,139,250,0.05);border-radius:8px;border-left:3px solid var(--accent)}
-.explanation-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px}
-.explanation-content{font-size:14px;color:var(--text-secondary);line-height:1.6}
+.q-body{padding:20px;display:none}
+.q-body.expanded{display:block}
+.q-stem{font-size:15px;line-height:1.6;margin-bottom:20px}
+.choice{padding:14px;border-radius:8px;margin-bottom:12px;font-size:14px;border:1px solid var(--card-border)}
+.choice.correct-answer{border-color:var(--success);background:rgba(52,211,153,0.08)}
+.choice.user-selected{border-color:var(--accent);background:rgba(167,139,250,0.08)}
+.choice.user-selected.wrong{border-color:var(--danger);background:rgba(248,113,113,0.08)}
+.choice-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.choice-label{font-weight:700;color:var(--text-primary)}
+.choice-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px}
+.tag-correct{background:var(--success);color:#000}
+.tag-your{background:var(--danger);color:#fff}
+.tag-your-correct{background:var(--success);color:#000}
+.choice-text{color:var(--text-secondary);line-height:1.5}
+.choice-explanation{margin-top:10px;padding-top:10px;border-top:1px solid var(--card-border);font-size:13px;color:var(--text-muted);line-height:1.5}
+.general-feedback{margin-top:16px;padding:16px;background:rgba(167,139,250,0.05);border-radius:8px;border-left:3px solid var(--accent)}
+.general-feedback-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px}
+.general-feedback-content{font-size:14px;color:var(--text-secondary);line-height:1.6}
+.your-answer-summary{font-size:13px;color:var(--text-muted);margin-bottom:12px}
+.your-answer-summary strong{color:var(--text-primary)}
 </style>
 </head>
 <body>
@@ -3065,46 +3099,71 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
     <h1>Review: {{ attempt.quiz_name }}</h1>
     <div class="summary">
       <div class="summary-item"><strong>Score:</strong> {{ attempt.score_percent }}%</div>
-      <div class="summary-item"><strong>Correct:</strong> {{ attempt.correct_count }} / {{ attempt.total_questions }}</div>
+      <div class="summary-item"><strong>Result:</strong> {{ attempt.correct_count }} / {{ attempt.total_questions }} correct</div>
       <div class="summary-item"><strong>Time:</strong> {{ (attempt.time_spent_seconds // 60)|int }}m {{ attempt.time_spent_seconds % 60 }}s</div>
     </div>
   </div>
   
   {% for resp in responses %}
-  <div class="question-card {% if resp.is_correct %}correct{% elif resp.selected_option or resp.user_answer %}incorrect{% else %}skipped{% endif %}">
-    <div class="q-header">
-      <div class="q-num">Question {{ loop.index }}</div>
+  <div class="question-card {% if resp.is_correct %}correct{% elif resp.user_answer %}incorrect{% else %}skipped{% endif %}">
+    <div class="q-header" onclick="toggleQuestion(this)">
+      <div class="q-num">Question {{ resp.question_number|default(loop.index) }}</div>
       <div class="q-meta">
-        {% if resp.flagged %}<span class="q-flag">🚩 Flagged</span>{% endif %}
+        {% if resp.flagged %}<span class="q-flag">🚩</span>{% endif %}
         <span class="q-time">⏱️ {{ resp.time_spent_seconds|default(0) }}s</span>
-        <span class="result-badge {% if resp.is_correct %}result-correct{% elif resp.selected_option or resp.user_answer %}result-incorrect{% else %}result-skipped{% endif %}">
-          {% if resp.is_correct %}✓ Correct{% elif resp.selected_option or resp.user_answer %}✗ Incorrect{% else %}Skipped{% endif %}
+        <span class="result-badge {% if resp.is_correct %}result-correct{% elif resp.user_answer %}result-incorrect{% else %}result-skipped{% endif %}">
+          {% if resp.is_correct %}✓ Correct{% elif resp.user_answer %}✗ Incorrect{% else %}Skipped{% endif %}
         </span>
       </div>
     </div>
     
-    <div class="q-stem">{{ resp.stem|safe }}</div>
-    
-    {% for choice in resp.choices %}
-    <div class="choice 
-      {% if choice.id == resp.correct_answer %}correct-answer{% endif %}
-      {% if choice.id == (resp.selected_option or resp.user_answer) %}user-selected{% if choice.id != resp.correct_answer %} incorrect{% endif %}{% endif %}">
-      <span class="choice-label">{{ ['A','B','C','D','E','F'][loop.index0] }}.</span>
-      {{ choice.text|safe }}
-      {% if choice.id == resp.correct_answer %}<span style="color:var(--success);margin-left:8px">✓ Correct</span>{% endif %}
-      {% if choice.id == (resp.selected_option or resp.user_answer) and choice.id != resp.correct_answer %}<span style="color:var(--danger);margin-left:8px">Your answer</span>{% endif %}
+    <div class="q-body">
+      <div class="q-stem">{{ resp.question_text|safe }}</div>
+      
+      <div class="your-answer-summary">
+        <strong>Your Answer:</strong> {{ resp.user_answer_label if resp.user_answer_label else 'Skipped' }} | 
+        <strong>Correct Answer:</strong> {{ resp.correct_answer_label|default('N/A') }}
+      </div>
+      
+      {% for choice in resp.choices %}
+      <div class="choice 
+        {% if choice.id == resp.correct_answer %}correct-answer{% endif %}
+        {% if choice.id == resp.user_answer %}user-selected{% if choice.id != resp.correct_answer %} wrong{% endif %}{% endif %}">
+        <div class="choice-header">
+          <span class="choice-label">{{ choice.label }}. {{ choice.text|safe|truncate(100) }}</span>
+          <span>
+            {% if choice.id == resp.correct_answer %}<span class="choice-tag {% if choice.id == resp.user_answer %}tag-your-correct{% else %}tag-correct{% endif %}">{% if choice.id == resp.user_answer %}✓ Your Correct Answer{% else %}✓ Correct{% endif %}</span>{% endif %}
+            {% if choice.id == resp.user_answer and choice.id != resp.correct_answer %}<span class="choice-tag tag-your">Your Answer</span>{% endif %}
+          </span>
+        </div>
+        {% if choice.explanation %}
+        <div class="choice-explanation">{{ choice.explanation|safe }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      
+      {% if not is_mock and resp.general_feedback %}
+      <div class="general-feedback">
+        <div class="general-feedback-title">General Explanation</div>
+        <div class="general-feedback-content">{{ resp.general_feedback|safe }}</div>
+      </div>
+      {% endif %}
     </div>
-    {% endfor %}
-    
-    {% if not is_mock and resp.feedback %}
-    <div class="explanation">
-      <div class="explanation-title">Explanation</div>
-      <div class="explanation-content">{{ resp.feedback.general|default('No explanation available.')|safe }}</div>
-    </div>
-    {% endif %}
   </div>
   {% endfor %}
 </div>
+
+<script>
+function toggleQuestion(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('expanded');
+}
+// Auto-expand first 3 questions
+document.addEventListener('DOMContentLoaded', function() {
+  const bodies = document.querySelectorAll('.q-body');
+  bodies.forEach((b, i) => { if (i < 3) b.classList.add('expanded'); });
+});
+</script>
 </body>
 </html>
 """
