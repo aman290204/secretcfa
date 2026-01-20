@@ -117,7 +117,7 @@ def get_topic_strengths(user_id):
         topic = get_module_category(module_num)
         if topic in topic_stats:
             topic_stats[topic]['correct'] += attempt.get('correct_count', 0)
-            topic_stats[topic]['total'] += attempt.get('total', 0)
+            topic_stats[topic]['total'] += attempt.get('total_questions', 0)
     
     # Build results in curriculum order
     results = []
@@ -1859,6 +1859,22 @@ def mock_timer_status():
     })
 
 
+@app.route("/profile")
+@login_required
+def profile():
+    """Display user profile with stats and activity"""
+    user_id = session.get('user_id')
+    user_data = get_user_by_id(user_id) if user_id else {}
+    stats = db.get_user_quiz_stats(user_id) if user_id else {}
+    attempts = db.get_user_quiz_attempts(user_id, limit=10) if user_id else []
+    
+    return render_template_string(PROFILE_TEMPLATE,
+                                  user=user_data,
+                                  stats=stats,
+                                  recent_attempts=attempts,
+                                  session=session)
+
+
 @app.route("/my-scores")
 @login_required
 def my_scores():
@@ -3189,6 +3205,71 @@ document.addEventListener('DOMContentLoaded', function() {
 </html>
 """
 
+PROFILE_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Profile - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--success:#34d399;--text-primary:#f1f5f9;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:900px;margin:28px auto;padding:0 18px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+.profile-header{display:flex;gap:24px;align-items:center;margin-bottom:30px}
+.avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent) 0%,#d4af37 100%);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#000}
+.user-info h1{font-size:24px;margin:0 0 4px 0}
+.user-info p{margin:0;color:var(--text-muted);font-size:14px}
+.status-badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;margin-top:8px;background:rgba(52,211,153,0.2);color:var(--success)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:30px}
+.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center}
+.stat-value{font-size:28px;font-weight:700}
+.stat-label{font-size:12px;color:var(--text-muted);margin-top:4px}
+.section-title{font-size:18px;font-weight:700;margin-bottom:16px}
+.activity-list{background:var(--card);border:1px solid var(--card-border);border-radius:12px;overflow:hidden}
+.activity-item{padding:14px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center}
+.activity-item:last-child{border-bottom:none}
+.activity-name{font-weight:600}
+.activity-meta{font-size:13px;color:var(--text-muted)}
+.activity-score{font-weight:700;color:var(--success)}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Dashboard</a>
+  <div class="profile-header">
+    <div class="avatar">{{ user.name[:1]|upper if user.name else 'U' }}</div>
+    <div class="user-info">
+      <h1>{{ user.name|default('User') }}</h1>
+      <p>{{ user.email|default(session.get('user_id', 'N/A')) }}</p>
+      <span class="status-badge">Active</span>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-value">{{ stats.total_attempts|default(0) }}</div><div class="stat-label">Total Attempts</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.avg_module_score|default(0)|int }}%</div><div class="stat-label">Avg Practice</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.avg_mock_score|default(0)|int }}%</div><div class="stat-label">Avg Mock</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.modules_completed|default(0) }}</div><div class="stat-label">Modules Done</div></div>
+  </div>
+  <div class="section-title">📊 Recent Activity</div>
+  {% if recent_attempts %}
+  <div class="activity-list">
+    {% for attempt in recent_attempts %}
+    <div class="activity-item">
+      <div><div class="activity-name">{{ attempt.quiz_name }}</div><div class="activity-meta">{{ attempt.timestamp[:10] if attempt.timestamp else 'N/A' }}</div></div>
+      <div class="activity-score">{{ attempt.score_percent }}%</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--text-muted)">No recent activity. Start practicing!</p>
+  {% endif %}
+  <div style="margin-top:20px"><a href="/my-scores" style="color:var(--accent);text-decoration:none;font-weight:600">View All Scores →</a></div>
+</div>
+</body>
+</html>
+"""
 
 @app.route('/api/session-details')
 @login_required
