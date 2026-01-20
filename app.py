@@ -2089,8 +2089,8 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .reset-link:hover{text-decoration:underline}
 .completion-section{margin-bottom:32px}
 .completion-label{font-size:14px;color:var(--text-secondary);margin-bottom:8px;display:block}
-.progress-bar-outer{background:rgba(255,255,255,0.05);height:24px;border-radius:12px;overflow:hidden;border:1px solid var(--card-border)}
-.progress-bar-fill{height:100%;background:rgba(255,255,255,0.1);width:0%;transition:width 0.5s ease}
+.progress-bar-outer{background:rgba(0,40,80,0.6);height:24px;border-radius:12px;overflow:hidden;border:1px solid var(--card-border)}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%);width:0%;transition:width 0.5s ease;border-radius:12px}
 .metrics-row{display:flex;gap:1px;background:var(--card-border);border:1px solid var(--card-border);border-radius:8px;overflow:hidden;margin-bottom:40px}
 .metric-box{background:var(--card);padding:24px;flex:1;display:flex;flex-direction:column;justify-content:center}
 .metric-box.large{flex:0 0 200px;text-align:center;border-right:1px solid var(--card-border)}
@@ -3531,18 +3531,81 @@ def practice_dashboard():
     total_questions = total_q_all
     completion_percent = round((questions_taken / total_questions * 100), 1) if total_questions > 0 else 0
     
+    # Calculate timing metrics from attempt responses
+    all_answer_times = []
+    correct_answer_times = []
+    incorrect_answer_times = []
+    session_durations = []
+    
+    for attempt in attempts:
+        # Session duration from timestamps
+        started_at = attempt.get('started_at')
+        submitted_at = attempt.get('submitted_at')
+        time_spent = attempt.get('time_spent_seconds', 0)
+        
+        if time_spent and time_spent > 0:
+            session_durations.append(time_spent)
+        elif started_at and submitted_at:
+            from datetime import datetime
+            try:
+                start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                end = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
+                duration = (end - start).total_seconds()
+                if 0 < duration < 86400:  # Sanity check: less than 24 hours
+                    session_durations.append(duration)
+            except:
+                pass
+        
+        # Per-question timing from responses
+        responses = attempt.get('responses', [])
+        for resp in responses:
+            time_sec = resp.get('time_spent_seconds', 0)
+            if time_sec and time_sec > 0:
+                all_answer_times.append(time_sec)
+                if resp.get('is_correct'):
+                    correct_answer_times.append(time_sec)
+                elif resp.get('user_answer'):  # Only incorrect if user answered
+                    incorrect_answer_times.append(time_sec)
+    
+    # Compute averages - show "0s" if data exists but is 0, "--" only if no data
+    def format_time(seconds):
+        if seconds >= 60:
+            return f"{int(seconds // 60)}m {int(seconds % 60)}s"
+        return f"{int(seconds)}s"
+    
+    if len(all_answer_times) > 0:
+        avg_answer_time = format_time(sum(all_answer_times) / len(all_answer_times))
+    else:
+        avg_answer_time = "--" if len(attempts) == 0 else "0s"
+    
+    if len(correct_answer_times) > 0:
+        avg_correct_time = format_time(sum(correct_answer_times) / len(correct_answer_times))
+    else:
+        avg_correct_time = "--" if len(attempts) == 0 else "0s"
+    
+    if len(incorrect_answer_times) > 0:
+        avg_incorrect_time = format_time(sum(incorrect_answer_times) / len(incorrect_answer_times))
+    else:
+        avg_incorrect_time = "--" if len(attempts) == 0 else "0s"
+    
+    if len(session_durations) > 0:
+        avg_session_duration = format_time(sum(session_durations) / len(session_durations))
+    else:
+        avg_session_duration = "--" if len(attempts) == 0 else "0s"
+    
     return render_template_string(
         PRACTICE_TEMPLATE,
         completion_percent=completion_percent,
         avg_correct=int(avg_correct),
         questions_taken=questions_taken,
         total_questions=total_questions,
-        avg_answer_time="--",
-        avg_correct_time="--",
-        avg_incorrect_time="--",
-        avg_session_duration="--",
+        avg_answer_time=avg_answer_time,
+        avg_correct_time=avg_correct_time,
+        avg_incorrect_time=avg_incorrect_time,
+        avg_session_duration=avg_session_duration,
         topics=topics_data
     )
+
 
 @app.route('/mocks')
 @login_required
