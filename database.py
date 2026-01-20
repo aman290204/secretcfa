@@ -597,7 +597,7 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         attempts = get_user_quiz_attempts(user_id, limit=1000)
         
         if not attempts:
-            return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
+            return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0, 'unique_questions_attempted': 0, 'questions_attempted_today': 0}
         
         total_score = sum(a.get('score_percent', 0) for a in attempts)
         
@@ -612,6 +612,19 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         
         # Unique modules completed overall (for study plan bar)
         unique_completed = len(unique_modules) + len(unique_mocks)
+        
+        # Count unique questions attempted (across all attempts)
+        unique_question_ids = set()
+        questions_today = set()
+        for attempt in attempts:
+            responses = attempt.get('responses', [])
+            attempt_date = attempt.get('timestamp', '')[:10] if attempt.get('timestamp') else ''
+            for resp in responses:
+                q_id = resp.get('question_id')
+                if q_id:
+                    unique_question_ids.add(q_id)
+                    if attempt_date == today_str:
+                        questions_today.add(q_id)
         
         # Calculate separate average scores for modules and mocks
         module_attempts = [a for a in attempts if a.get('quiz_type') == 'module']
@@ -628,11 +641,13 @@ def get_user_quiz_stats(user_id: str) -> Dict:
             'modules_completed': len(unique_modules),
             'mocks_completed': len(unique_mocks),
             'today_attempts': today_attempts_count,
-            'unique_completed': unique_completed
+            'unique_completed': unique_completed,
+            'unique_questions_attempted': len(unique_question_ids),
+            'questions_attempted_today': len(questions_today)
         }
     except Exception as e:
         print(f"❌ Error getting user quiz stats: {e}")
-        return {'total_attempts': 0, 'avg_score': 0, 'avg_module_score': 0, 'avg_mock_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0}
+        return {'total_attempts': 0, 'avg_score': 0, 'avg_module_score': 0, 'avg_mock_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0, 'unique_questions_attempted': 0, 'questions_attempted_today': 0}
 
 
 def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:

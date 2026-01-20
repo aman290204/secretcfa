@@ -1654,6 +1654,23 @@ def menu():
     # Calculate topic strengths for Strengths & Weaknesses section
     topic_strengths = get_topic_strengths(user_id) if user_id else []
     
+    # Calculate total questions in the system (sum of all quiz file questions)
+    total_questions = sum(f.get('questions', 0) for f in files)
+    
+    # Calculate daily target: remaining questions / days left until exam
+    from math import ceil
+    try:
+        exam_date_obj = date.fromisoformat(exam_date)
+        days_left = max(1, (exam_date_obj - date.today()).days)  # Minimum 1 day
+    except:
+        days_left = 180  # Default to 180 days if parsing fails
+    
+    remaining_questions = max(0, total_questions - stats.get('unique_questions_attempted', 0))
+    daily_target = ceil(remaining_questions / days_left) if days_left > 0 else remaining_questions
+    
+    # Calculate study progress percentage
+    study_progress_pct = round(stats.get('unique_questions_attempted', 0) / total_questions * 100, 1) if total_questions > 0 else 0
+    
     return render_template_string(
         MENU_TEMPLATE, 
         files=files, 
@@ -1667,7 +1684,11 @@ def menu():
         user_role=session.get('user_role', 'user'), 
         stats=stats,
         exam_date=exam_date,
-        topic_strengths=topic_strengths
+        topic_strengths=topic_strengths,
+        total_questions=total_questions,
+        daily_target=daily_target,
+        study_progress_pct=study_progress_pct,
+        days_left=days_left
     )
 
 
@@ -2596,25 +2617,25 @@ body.sidebar-collapsed .main-content{margin-left:0}
         <input type="date" id="examDatePicker" value="{{ exam_date }}" style="position:absolute;opacity:0;pointer-events:none" onchange="updateExamDate(this.value)">
       </div>
 
-      <!-- Knowledge Goal -->
+      <!-- Today's Study Progress -->
       <div class="progress-card">
         <div class="progress-label">
-          <span>Today's Knowledge Goal</span>
-          <span style="color: var(--text-primary)">{{ stats.today_attempts|default(0) }}/390 🎯</span>
+          <span>Today's Study Progress</span>
+          <span style="color: var(--text-primary)">{{ stats.questions_attempted_today|default(0) }}/{{ daily_target }} 📚</span>
         </div>
         <div class="progress-bar-outer">
-          <div class="progress-bar-fill orange" style="width: {{ [stats.today_attempts|default(0) * 0.25, 100]|min }}%"></div>
+          <div class="progress-bar-fill orange" style="width: {{ [stats.questions_attempted_today|default(0) / daily_target * 100, 100]|min if daily_target > 0 else 0 }}%"></div>
         </div>
       </div>
 
-      <!-- Study Progress -->
+      <!-- Study Progress (Overall) -->
       <div class="progress-card">
         <div class="progress-label">
-          <span>Study Plan Progress</span>
-          <span style="color: var(--text-primary)">{{ ((stats.unique_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%</span>
+          <span>Study Progress</span>
+          <span style="color: var(--text-primary)">{{ study_progress_pct }}% complete</span>
         </div>
         <div class="progress-bar-outer">
-          <div class="progress-bar-fill orange" style="width: {{ ((stats.unique_completed|default(0)) / total_files * 100)|int if total_files > 0 else 0 }}%"></div>
+          <div class="progress-bar-fill orange" style="width: {{ study_progress_pct }}%"></div>
         </div>
       </div>
     </div>
