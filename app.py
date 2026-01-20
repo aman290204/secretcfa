@@ -1700,6 +1700,27 @@ def recently_viewed():
     recently_viewed_items = get_recently_viewed(session)
     return render_template_string(RECENTLY_VIEWED_TEMPLATE, recently_viewed=recently_viewed_items, session=session)
 
+
+@app.route("/all")
+@login_required
+def flashcards():
+    """Display flashcards from CFA curriculum PDF"""
+    # Check if flashcards JSON exists
+    flashcard_path = os.path.join(DATA_FOLDER, 'flashcards.json')
+    cards = []
+    
+    if os.path.exists(flashcard_path):
+        try:
+            with open(flashcard_path, 'r', encoding='utf-8') as f:
+                cards = json.load(f)
+        except:
+            cards = []
+    
+    return render_template_string(FLASHCARD_TEMPLATE, 
+                                  cards=cards, 
+                                  total_cards=len(cards),
+                                  session=session)
+
 @app.route("/history")
 @login_required
 def history():
@@ -3292,6 +3313,98 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
 </html>
 """
 
+FLASHCARD_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Flashcards - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--success:#34d399;--text-primary:#f1f5f9;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:800px;margin:28px auto;padding:0 18px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+.header{margin-bottom:30px}
+.header h1{font-size:24px;font-weight:700;margin:0 0 8px 0}
+.header p{color:var(--text-muted);font-size:14px;margin:0}
+.flashcard{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:40px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s;text-align:center;margin-bottom:20px}
+.flashcard:hover{border-color:var(--accent);transform:translateY(-4px)}
+.flashcard-term{font-size:24px;font-weight:700}
+.flashcard-definition{font-size:18px;color:var(--text-muted);line-height:1.6}
+.controls{display:flex;gap:16px;justify-content:center;margin-bottom:20px}
+.btn{padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;border:none;transition:all 0.2s}
+.btn-prev,.btn-next{background:var(--card);color:var(--text-primary);border:1px solid var(--card-border)}
+.btn-prev:hover,.btn-next:hover{border-color:var(--accent);background:rgba(167,139,250,0.1)}
+.counter{text-align:center;color:var(--text-muted);font-size:14px}
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty h2{color:var(--text-primary);margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Dashboard</a>
+  <div class="header">
+    <h1>📇 Flashcards</h1>
+    <p>{{ total_cards }} cards from CFA Curriculum</p>
+  </div>
+  
+  {% if cards %}
+  <div class="flashcard" id="flashcard" onclick="flipCard()">
+    <div id="cardContent" class="flashcard-term"></div>
+  </div>
+  
+  <div class="controls">
+    <button class="btn btn-prev" onclick="prevCard()">← Previous</button>
+    <button class="btn btn-next" onclick="nextCard()">Next →</button>
+  </div>
+  
+  <div class="counter">Card <span id="cardNum">1</span> of {{ total_cards }}</div>
+  
+  <script>
+  const cards = {{ cards|tojson }};
+  let idx = 0;
+  let showingTerm = true;
+  
+  function render() {
+    const card = cards[idx];
+    const content = showingTerm ? card.term : card.definition;
+    document.getElementById('cardContent').textContent = content;
+    document.getElementById('cardContent').className = showingTerm ? 'flashcard-term' : 'flashcard-definition';
+    document.getElementById('cardNum').textContent = idx + 1;
+  }
+  
+  function flipCard() {
+    showingTerm = !showingTerm;
+    render();
+  }
+  
+  function nextCard() {
+    idx = (idx + 1) % cards.length;
+    showingTerm = true;
+    render();
+  }
+  
+  function prevCard() {
+    idx = (idx - 1 + cards.length) % cards.length;
+    showingTerm = true;
+    render();
+  }
+  
+  render();
+  </script>
+  {% else %}
+  <div class="empty">
+    <h2>No Flashcards Yet</h2>
+    <p>Flashcards will be available after the CFA PDF is processed.</p>
+    <p>Check back soon!</p>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>
+"""
+
 @app.route('/api/session-details')
 @login_required
 def get_session_details_api():
@@ -3304,6 +3417,40 @@ def get_session_details_api():
         'user_name': session.get('user_name'),
         'sessions': sessions
     })
+
+
+@app.route('/api/update-exam-date', methods=['POST'])
+@login_required
+def update_exam_date():
+    """Update user's exam date"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        new_date = data.get('exam_date')
+        
+        if not user_id or not new_date:
+            return jsonify({'status': 'error', 'message': 'Missing data'}), 400
+        
+        # Validate date format
+        try:
+            from datetime import date
+            date.fromisoformat(new_date)
+        except:
+            return jsonify({'status': 'error', 'message': 'Invalid date format'}), 400
+        
+        # Update user's exam date in Redis
+        if db.redis_client:
+            user_key = f'user:{user_id}'
+            user_data = db.redis_client.hgetall(user_key)
+            if user_data:
+                db.redis_client.hset(user_key, 'exam_date', new_date)
+                return jsonify({'status': 'success', 'exam_date': new_date})
+        
+        return jsonify({'status': 'error', 'message': 'Failed to update'}), 500
+    except Exception as e:
+        print(f"❌ Error updating exam date: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 @app.route('/practice')
 @login_required
