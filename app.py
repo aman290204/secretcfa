@@ -96,6 +96,43 @@ def get_module_category(module_num):
             return category
     return 'Unknown'
 
+def get_topic_strengths(user_id):
+    """
+    Calculate % correct per CFA topic from user quiz attempts.
+    Returns list of dicts: [{name, percent, correct, total}, ...]
+    """
+    attempts = db.get_user_quiz_attempts(user_id, limit=1000)
+    
+    # Initialize stats for each topic
+    topic_stats = {}
+    for topic_name in MODULE_CATEGORIES.keys():
+        topic_stats[topic_name] = {'correct': 0, 'total': 0}
+    
+    # Aggregate correct/total from all attempts
+    for attempt in attempts:
+        quiz_name = attempt.get('quiz_name', '')
+        module_num = get_module_number(quiz_name)
+        if module_num == 0:
+            continue  # Skip non-module quizzes (mocks, etc.)
+        topic = get_module_category(module_num)
+        if topic in topic_stats:
+            topic_stats[topic]['correct'] += attempt.get('correct_count', 0)
+            topic_stats[topic]['total'] += attempt.get('total', 0)
+    
+    # Build results in curriculum order
+    results = []
+    for topic_name in MODULE_CATEGORIES.keys():
+        stats = topic_stats[topic_name]
+        pct = round(stats['correct'] / stats['total'] * 100) if stats['total'] > 0 else None
+        results.append({
+            'name': topic_name,
+            'percent': pct,
+            'correct': stats['correct'],
+            'total': stats['total']
+        })
+    return results
+
+
 def sort_modules(files, sort_type='id'):
     """Sort module files based on sort type"""
     modules = [f for f in files if f['is_module']]
@@ -662,6 +699,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
             <input id="gotoInput" type="number" min="1" style="width:64px;padding:6px;border-radius:6px;border:1px solid #e6eef6;margin-left:6px"/>
             <button class="btn" id="gotoBtn" type="button">Go</button>
           </div>
+          <button type="button" class="btn" id="flagBtn" onclick="toggleFlag()" style="background:var(--glass-bg);border:1px solid var(--glass-border)">🏳️ Flag</button>
           <button type="button" class="btn" id="skip">Skip</button>
           <button type="button" class="btn primary" id="submit">Submit Answer</button>
           <button type="button" class="btn primary" id="finish">✅ Finish & Save Score</button>
@@ -690,6 +728,11 @@ let userAnswers = new Array(total).fill(null);
 let questionStatus = new Array(total).fill(false); // false = not answered, true = answered
 let currentQuestions = [...questions]; // Working copy of questions for sorting
 let originalOrder = [...Array(total).keys()]; // Keep track of original order
+
+// Per-question time tracking
+let questionTimes = new Array(total).fill(0); // Accumulated time per question in seconds
+let questionFlags = new Array(total).fill(false); // Flag/bookmark per question
+let questionTimeStart = Date.now(); // When current question was rendered
 
 // Check if this is a mock exam or study module
 // Mode Constants from Backend
@@ -826,7 +869,24 @@ function stripHtml(html){
   return d.body.textContent || '';
 }
 
+function toggleFlag() {
+  questionFlags[idx] = !questionFlags[idx];
+  const flagBtn = document.getElementById('flagBtn');
+  if (flagBtn) {
+    flagBtn.textContent = questionFlags[idx] ? '🚩 Flagged' : '🏳️ Flag';
+    flagBtn.style.background = questionFlags[idx] ? 'var(--warning)' : 'var(--glass-bg)';
+  }
+}
+
 function render(i){
+  // Save time for previous question before switching
+  if (typeof idx !== 'undefined' && idx !== i) {
+    const elapsed = Math.floor((Date.now() - questionTimeStart) / 1000);
+    questionTimes[idx] += elapsed;
+  }
+  // Reset timer for new question
+  questionTimeStart = Date.now();
+  
   idx = i;
   const q = currentQuestions[i];
   document.getElementById('qnum').textContent = (i+1) + ' / ' + total;
@@ -853,6 +913,13 @@ function render(i){
   
   document.getElementById('feedback').innerHTML = '';
   document.getElementById('gotoInput').value = '';
+  
+  // Update flag button state
+  const flagBtn = document.getElementById('flagBtn');
+  if (flagBtn) {
+    flagBtn.textContent = questionFlags[i] ? '🚩 Flagged' : '🏳️ Flag';
+    flagBtn.style.background = questionFlags[i] ? 'var(--warning)' : 'var(--glass-bg)';
+  }
   
   // Hide/Show Submit and Skip based on Mode
   if (IS_MOCK) {
@@ -949,9 +1016,13 @@ function showFinalResults() {
     
     responses.push({
       question_id: q.id,
+      question_index: i,
+      selected_option: userAnswer,
       user_answer: userAnswer,
       correct_answer: q.correct,
       is_correct: isCorrect,
+      time_spent_seconds: questionTimes[i] + Math.floor((Date.now() - questionTimeStart) / 1000),
+      flagged: questionFlags[i],
       user_answer_text: userAnswerText,
       correct_answer_text: correctAnswerText
     });
@@ -1564,10 +1635,14 @@ def menu():
     default_exam_date = (date.today() + timedelta(days=180)).isoformat()
     exam_date = user_data.get('exam_date') or default_exam_date
     
+    # Calculate topic strengths for Strengths & Weaknesses section
+    topic_strengths = get_topic_strengths(user_id) if user_id else []
+    
     return render_template_string(
         MENU_TEMPLATE, 
         files=files, 
-        total_files=len(files), 
+        total_files=len(files),
+        total_modules=len(modules),
         debug_modules=len(modules), 
         debug_mocks=len(mocks), 
         session=session, 
@@ -1575,8 +1650,10 @@ def menu():
         current_sort=sort_type, 
         user_role=session.get('user_role', 'user'), 
         stats=stats,
-        exam_date=exam_date
+        exam_date=exam_date,
+        topic_strengths=topic_strengths
     )
+
 
 
 @app.route("/recently-viewed")
@@ -1727,6 +1804,57 @@ def my_scores():
                                   stats=stats,
                                   session=session,
                                   user_role=session.get('user_role', 'user'))
+
+
+@app.route("/review-attempt/<attempt_id>")
+@login_required
+def review_attempt(attempt_id):
+    """Review a specific attempt with question-by-question breakdown"""
+    user_id = session.get('user_id')
+    
+    # Get attempt from Redis
+    attempt = db.get_quiz_attempt_by_id(user_id, attempt_id)
+    
+    if not attempt:
+        return redirect(url_for('my_scores'))
+    
+    # Get the original quiz questions for full context
+    quiz_name = attempt.get('quiz_name') or attempt.get('quiz_id')
+    quiz_path = os.path.join(DATA_FOLDER, quiz_name + '.json')
+    
+    original_questions = []
+    if os.path.exists(quiz_path):
+        try:
+            with open(quiz_path, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+                original_questions = _find_items_structure(raw)
+        except:
+            pass
+    
+    # Build question map for quick lookup
+    question_map = {q.get('id'): q for q in original_questions}
+    
+    # Enrich responses with full question data
+    responses = attempt.get('responses', [])
+    enriched_responses = []
+    for resp in responses:
+        q_id = resp.get('question_id')
+        q_data = question_map.get(q_id, {})
+        
+        enriched_responses.append({
+            **resp,
+            'stem': q_data.get('stem') or q_data.get('title', ''),
+            'choices': q_data.get('choices', []),
+            'feedback': q_data.get('feedback', {})
+        })
+    
+    is_mock = attempt.get('quiz_type') == 'mock' or attempt.get('mode') == 'mock'
+    
+    return render_template_string(REVIEW_ATTEMPT_TEMPLATE,
+                                  attempt=attempt,
+                                  responses=enriched_responses,
+                                  is_mock=is_mock,
+                                  session=session)
 
 
 @app.route("/attempt/<attempt_id>")
@@ -2307,11 +2435,26 @@ body.sidebar-collapsed .main-content{margin-left:0}
 .task-btn{background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:6px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.2s;text-decoration:none}
 .task-btn.purple{background:var(--jewel-amethyst)}
 .task-btn:hover{opacity:0.9;transform:translateY(-2px)}
+/* Strengths & Weaknesses Section */
+.strengths-section{margin-top:30px;background:var(--card);border:1px solid var(--card-border);border-radius:8px;padding:24px}
+.strengths-header{font-size:20px;font-weight:700;margin-bottom:8px;color:var(--text-primary)}
+.strengths-desc{color:var(--text-muted);font-size:13px;margin-bottom:20px}
+.strength-row{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--card-border)}
+.strength-row:last-child{border-bottom:none}
+.topic-name{flex:0 0 280px;font-weight:600;color:var(--text-primary);font-size:14px}
+.progress-track{flex:1;height:10px;background:rgba(255,255,255,0.05);border-radius:0;overflow:hidden;margin:0 20px}
+.progress-fill-bar{height:100%;transition:width 0.5s}
+.progress-fill-bar.green{background:#2E7D32}
+.progress-fill-bar.yellow{background:#F9A825}
+.progress-fill-bar.red{background:#C62828}
+.progress-fill-bar.grey{background:#555}
+.pct-value{flex:0 0 60px;text-align:right;font-weight:700;font-size:14px;color:var(--text-primary)}
 @media(max-width:768px){
   .main-content{margin-left:0 !important}
   .sidebar{transform:translateX(-100%)}
   .score-circles{flex-direction:column;gap:30px}
   .action-grid{grid-template-columns:1fr}
+  .topic-name{flex:0 0 150px;font-size:12px}
 }
 @keyframes slideDown {
   from {opacity: 0; transform: translateY(-20px);}
@@ -2478,51 +2621,25 @@ body.sidebar-collapsed .main-content{margin-left:0}
     <input type="text" id="searchInput" onkeyup="filterModules()" placeholder="Search modules or exams..." />
   </div>
 
-  {% if mocks %}
-  <div class="section">
-    <div class="section-title">🎯 Mock Exams ({{ mocks|length }})</div>
-    <div class="grid" id="mockGrid">
-      {% for file in mocks %}
-      <div class="card" data-name="{{ file.display_name|lower }}">
-        <div class="card-title">{{ file.display_name }}
-          {% if file.completed %}
-          <span class="completed-badge">Completed</span>
-          {% endif %}
-        </div>
-        <div class="card-meta">
-          <span>📝 {{ file.questions }} questions</span>
-        </div>
-        <div class="card-actions">
-          <a href="/{{ file.display_name }}" class="btn btn-primary">Start Quiz</a>
-        </div>
+  <!-- STRENGTHS & WEAKNESSES SECTION -->
+  <div class="strengths-section">
+    <div class="strengths-header">Strengths & Weaknesses</div>
+    <p class="strengths-desc">Your performance by CFA curriculum topic</p>
+    
+    {% for topic in topic_strengths %}
+    <div class="strength-row">
+      <div class="topic-name">{{ topic.name }}</div>
+      <div class="progress-track">
+        {% if topic.percent is not none %}
+        <div class="progress-fill-bar {% if topic.percent >= 70 %}green{% elif topic.percent >= 50 %}yellow{% else %}red{% endif %}" style="width: {{ topic.percent }}%"></div>
+        {% else %}
+        <div class="progress-fill-bar grey" style="width: 0%"></div>
+        {% endif %}
       </div>
-      {% endfor %}
+      <div class="pct-value">{% if topic.percent is not none %}{{ topic.percent }}%{% else %}N/A{% endif %}</div>
     </div>
+    {% endfor %}
   </div>
-  {% endif %}
-
-  {% if modules %}
-  <div class="section">
-    <div class="section-title">📖 Study Modules ({{ modules|length }})</div>
-    <div class="grid" id="moduleGrid">
-      {% for file in modules %}
-      <div class="card" data-name="{{ file.display_name|lower }}">
-        <div class="card-title">{{ file.display_name }}
-          {% if file.completed %}
-          <span class="completed-badge">Completed</span>
-          {% endif %}
-        </div>
-        <div class="card-meta">
-          <span>📝 {{ file.questions }} questions</span>
-        </div>
-        <div class="card-actions">
-          <a href="/{{ file.display_name }}" class="btn btn-primary">Start Quiz</a>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
 
   {% if not files %}
   <div class="empty">
@@ -2790,11 +2907,100 @@ USER_PROFILE_TEMPLATE = """
 
 MY_SCORES_TEMPLATE = """
 <!doctype html>
-<html><head><title>My Scores</title></head>
-<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
-<h1>My Performance</h1>
-<p>Average Score: {{ stats.avg_score }}%</p>
-<a href="/menu" style="color:#a78bfa">Back to Menu</a>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Scores - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--accent-dark:#8b5cf6;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:1100px;margin:28px auto;padding:0 18px}
+.header{margin-bottom:30px}
+.header h1{font-size:28px;font-weight:700;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{color:var(--text-muted);margin:0}
+.stats-row{display:flex;gap:20px;margin-bottom:30px;flex-wrap:wrap}
+.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;flex:1;min-width:150px}
+.stat-value{font-size:32px;font-weight:700;color:var(--text-primary)}
+.stat-label{font-size:13px;color:var(--text-muted);margin-top:4px}
+.attempts-table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden}
+.attempts-table th{text-align:left;padding:14px 20px;background:rgba(255,255,255,0.03);font-size:12px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--card-border)}
+.attempts-table td{padding:14px 20px;border-bottom:1px solid var(--card-border);font-size:14px}
+.attempts-table tr:last-child td{border-bottom:none}
+.score-badge{padding:4px 12px;border-radius:20px;font-weight:600;font-size:13px}
+.score-high{background:rgba(52,211,153,0.2);color:var(--success)}
+.score-mid{background:rgba(251,191,36,0.2);color:var(--warning)}
+.score-low{background:rgba(248,113,113,0.2);color:var(--danger)}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.2s}
+.btn-primary{background:var(--accent);color:#000}
+.btn-secondary{background:rgba(255,255,255,0.05);color:var(--text-secondary);border:1px solid var(--card-border)}
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Menu</a>
+  
+  <div class="header">
+    <h1>📊 My Scores</h1>
+    <p>Your quiz attempts and performance history</p>
+  </div>
+  
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.total_attempts|default(0) }}</div>
+      <div class="stat-label">Total Attempts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.avg_module_score|default(0)|int }}%</div>
+      <div class="stat-label">Avg. Practice Score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.avg_mock_score|default(0)|int }}%</div>
+      <div class="stat-label">Avg. Mock Score</div>
+    </div>
+  </div>
+  
+  {% if attempts %}
+  <table class="attempts-table">
+    <thead>
+      <tr>
+        <th>Quiz Name</th>
+        <th>Type</th>
+        <th>Date</th>
+        <th>Score</th>
+        <th>Time Spent</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for attempt in attempts %}
+      <tr>
+        <td>{{ attempt.quiz_name }}</td>
+        <td>{{ 'Mock' if attempt.quiz_type == 'mock' else 'Practice' }}</td>
+        <td>{{ attempt.timestamp[:10] if attempt.timestamp else 'N/A' }}</td>
+        <td>
+          <span class="score-badge {% if attempt.score_percent >= 70 %}score-high{% elif attempt.score_percent >= 50 %}score-mid{% else %}score-low{% endif %}">
+            {{ attempt.score_percent }}%
+          </span>
+        </td>
+        <td>{{ (attempt.time_spent_seconds // 60)|int }}m {{ attempt.time_spent_seconds % 60 }}s</td>
+        <td>
+          <a href="/review-attempt/{{ attempt.attempt_id }}" class="btn btn-primary">Review</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <h3>No attempts yet</h3>
+    <p>Complete a quiz to see your scores here.</p>
+    <a href="/practice" class="btn btn-primary" style="margin-top:16px">Start Practice</a>
+  </div>
+  {% endif %}
+</div>
 </body>
 </html>
 """
@@ -2806,6 +3012,99 @@ ATTEMPT_DETAILS_TEMPLATE = """
 <h1>Attempt: {{ attempt.quiz_name }}</h1>
 <p>Score: {{ attempt.score_percent }}%</p>
 <a href="/my-scores" style="color:#a78bfa">Back to Scores</a>
+</body>
+</html>
+"""
+
+REVIEW_ATTEMPT_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Review Attempt - {{ attempt.quiz_name }}</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:900px;margin:28px auto;padding:0 18px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+.header{margin-bottom:30px;padding-bottom:20px;border-bottom:1px solid var(--card-border)}
+.header h1{font-size:24px;font-weight:700;margin:0 0 8px 0}
+.summary{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px}
+.summary-item{font-size:14px;color:var(--text-secondary)}
+.summary-item strong{color:var(--text-primary)}
+.question-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:24px;margin-bottom:20px}
+.question-card.correct{border-left:4px solid var(--success)}
+.question-card.incorrect{border-left:4px solid var(--danger)}
+.question-card.skipped{border-left:4px solid var(--text-muted)}
+.q-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.q-num{font-size:14px;font-weight:700;color:var(--accent)}
+.q-meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted)}
+.q-flag{color:var(--warning)}
+.q-time{color:var(--text-secondary)}
+.q-stem{font-size:15px;line-height:1.6;margin-bottom:20px}
+.choice{padding:10px 14px;border-radius:8px;margin-bottom:8px;font-size:14px;border:1px solid var(--card-border)}
+.choice.user-selected{border-color:var(--accent);background:rgba(167,139,250,0.1)}
+.choice.correct-answer{border-color:var(--success);background:rgba(52,211,153,0.1)}
+.choice.user-selected.incorrect{border-color:var(--danger);background:rgba(248,113,113,0.1)}
+.choice-label{font-weight:700;margin-right:8px}
+.result-badge{padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.result-correct{background:rgba(52,211,153,0.2);color:var(--success)}
+.result-incorrect{background:rgba(248,113,113,0.2);color:var(--danger)}
+.result-skipped{background:rgba(148,163,184,0.2);color:var(--text-muted)}
+.explanation{margin-top:16px;padding:16px;background:rgba(167,139,250,0.05);border-radius:8px;border-left:3px solid var(--accent)}
+.explanation-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px}
+.explanation-content{font-size:14px;color:var(--text-secondary);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/my-scores" class="nav-back">← Back to My Scores</a>
+  
+  <div class="header">
+    <h1>Review: {{ attempt.quiz_name }}</h1>
+    <div class="summary">
+      <div class="summary-item"><strong>Score:</strong> {{ attempt.score_percent }}%</div>
+      <div class="summary-item"><strong>Correct:</strong> {{ attempt.correct_count }} / {{ attempt.total_questions }}</div>
+      <div class="summary-item"><strong>Time:</strong> {{ (attempt.time_spent_seconds // 60)|int }}m {{ attempt.time_spent_seconds % 60 }}s</div>
+    </div>
+  </div>
+  
+  {% for resp in responses %}
+  <div class="question-card {% if resp.is_correct %}correct{% elif resp.selected_option or resp.user_answer %}incorrect{% else %}skipped{% endif %}">
+    <div class="q-header">
+      <div class="q-num">Question {{ loop.index }}</div>
+      <div class="q-meta">
+        {% if resp.flagged %}<span class="q-flag">🚩 Flagged</span>{% endif %}
+        <span class="q-time">⏱️ {{ resp.time_spent_seconds|default(0) }}s</span>
+        <span class="result-badge {% if resp.is_correct %}result-correct{% elif resp.selected_option or resp.user_answer %}result-incorrect{% else %}result-skipped{% endif %}">
+          {% if resp.is_correct %}✓ Correct{% elif resp.selected_option or resp.user_answer %}✗ Incorrect{% else %}Skipped{% endif %}
+        </span>
+      </div>
+    </div>
+    
+    <div class="q-stem">{{ resp.stem|safe }}</div>
+    
+    {% for choice in resp.choices %}
+    <div class="choice 
+      {% if choice.id == resp.correct_answer %}correct-answer{% endif %}
+      {% if choice.id == (resp.selected_option or resp.user_answer) %}user-selected{% if choice.id != resp.correct_answer %} incorrect{% endif %}{% endif %}">
+      <span class="choice-label">{{ ['A','B','C','D','E','F'][loop.index0] }}.</span>
+      {{ choice.text|safe }}
+      {% if choice.id == resp.correct_answer %}<span style="color:var(--success);margin-left:8px">✓ Correct</span>{% endif %}
+      {% if choice.id == (resp.selected_option or resp.user_answer) and choice.id != resp.correct_answer %}<span style="color:var(--danger);margin-left:8px">Your answer</span>{% endif %}
+    </div>
+    {% endfor %}
+    
+    {% if not is_mock and resp.feedback %}
+    <div class="explanation">
+      <div class="explanation-title">Explanation</div>
+      <div class="explanation-content">{{ resp.feedback.general|default('No explanation available.')|safe }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
 </body>
 </html>
 """
