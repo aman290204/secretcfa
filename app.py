@@ -743,6 +743,7 @@ const IS_MOCK = MODE === "mock";
 // Timer Persistence logic
 let remainingTime;
 let timerStart = Date.now();
+const startedAtISO = new Date().toISOString(); // Capture quiz start time for accurate tracking
 
 if (IS_MOCK) {
   syncTimerWithServer();
@@ -1041,14 +1042,17 @@ function showFinalResults() {
   });
   
   const scorePercent = Math.round((correctCount / total) * 100);
+  const submittedAtISO = new Date().toISOString();
   const timeSpent = Math.floor((Date.now() - timerStart) / 1000);
   
-  // Save attempt to server with metadata
+  // Save attempt to server with metadata and timestamps
   saveAttemptToServer({
     quiz_name: '{{ quiz_title }}',
     quiz_id: '{{ data_source }}',
     quiz_type: MODE,
     mode: MODE,
+    started_at: startedAtISO,
+    submitted_at: submittedAtISO,
     time_limit: TIME_LIMIT,
     total_questions: total,
     correct_count: correctCount,
@@ -1746,11 +1750,28 @@ def save_attempt():
             # Clear the timer from Redis upon successful submission
             db.clear_mock_timer(user_id, quiz_id)
         
-        # Prepare attempt data
+        # Get timestamps from frontend (ISO format)
+        started_at = data.get('started_at')  # ISO timestamp when quiz started
+        submitted_at = data.get('submitted_at') or datetime.now().isoformat()  # Fallback to now
+        
+        # If we have both timestamps, calculate time from them (more accurate)
+        if started_at and submitted_at and mode != 'mock':
+            try:
+                from datetime import datetime as dt
+                start_dt = dt.fromisoformat(started_at.replace('Z', '+00:00'))
+                end_dt = dt.fromisoformat(submitted_at.replace('Z', '+00:00'))
+                time_spent_seconds = int((end_dt - start_dt).total_seconds())
+            except:
+                pass  # Keep frontend time if parsing fails
+        
+        # Prepare attempt data with full snapshot for review
         attempt_data = {
             'quiz_id': quiz_id,
             'quiz_name': data.get('quiz_name', 'Unknown Quiz'),
             'quiz_type': mode,
+            'mode': mode,
+            'started_at': started_at,
+            'submitted_at': submitted_at,
             'total_questions': data.get('total_questions', 0),
             'correct_count': data.get('correct_count', 0),
             'wrong_count': data.get('wrong_count', 0),
