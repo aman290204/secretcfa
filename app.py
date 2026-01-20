@@ -3422,7 +3422,7 @@ def get_session_details_api():
 @app.route('/api/update-exam-date', methods=['POST'])
 @login_required
 def update_exam_date():
-    """Update user's exam date"""
+    """Update user's exam date - supports unlimited changes"""
     try:
         data = request.get_json()
         user_id = session.get('user_id')
@@ -3438,15 +3438,14 @@ def update_exam_date():
         except:
             return jsonify({'status': 'error', 'message': 'Invalid date format'}), 400
         
-        # Update user's exam date in Redis
-        if db.redis_client:
-            user_key = f'user:{user_id}'
-            user_data = db.redis_client.hgetall(user_key)
-            if user_data:
-                db.redis_client.hset(user_key, 'exam_date', new_date)
-                return jsonify({'status': 'success', 'exam_date': new_date})
+        # Update user's exam date in Redis using proper update method
+        success = db.update_user(user_id, {'exam_date': new_date})
         
-        return jsonify({'status': 'error', 'message': 'Failed to update'}), 500
+        if success:
+            print(f"📅 Updated exam date for user '{user_id}' to {new_date}")
+            return jsonify({'status': 'success', 'exam_date': new_date})
+        else:
+            return jsonify({'status': 'error', 'message': 'Failed to update'}), 500
     except Exception as e:
         print(f"❌ Error updating exam date: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
