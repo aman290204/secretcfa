@@ -780,28 +780,37 @@ body.sidebar-collapsed .main-content{margin-left:0}
 
 <script>
 const questions = {{ questions | tojson }};
-let idx = 0;
 const total = questions.length;
-let userAnswers = new Array(total).fill(null);
-let questionStatus = new Array(total).fill(false); // false = not answered, true = answered
-let currentQuestions = [...questions]; // Working copy of questions for sorting
-let originalOrder = [...Array(total).keys()]; // Keep track of original order
+const resumeData = {{ resume_data | tojson }};
+
+// Resuming logic: start from the first unanswered question if resumeData exists
+let idx = 0;
+if (resumeData.user_answers) {
+  const firstUnanswered = resumeData.user_answers.findIndex(ans => ans === null);
+  idx = (firstUnanswered === -1) ? (resumeData.last_index || 0) : firstUnanswered;
+} else if (resumeData.hasOwnProperty('last_index')) {
+  idx = resumeData.last_index;
+}
+
+let userAnswers = resumeData.user_answers || new Array(total).fill(null);
+let questionStatus = userAnswers.map(ans => ans !== null); 
+let currentQuestions = [...questions]; 
+let originalOrder = [...Array(total).keys()]; 
 
 // Per-question time tracking
-let questionTimes = new Array(total).fill(0); // Accumulated time per question in seconds
-let questionFlags = new Array(total).fill(false); // Flag/bookmark per question
-let questionTimeStart = Date.now(); // When current question was rendered
+let questionTimes = resumeData.question_times || new Array(total).fill(0);
+let questionFlags = resumeData.question_flags || new Array(total).fill(false);
+let questionTimeStart = Date.now(); 
 
-// Check if this is a mock exam or study module
 // Mode Constants from Backend
 const MODE = "{{ mode }}";
-const TIME_LIMIT = {{ time_limit }}; // in seconds
+const TIME_LIMIT = {{ time_limit }}; 
 const IS_MOCK = MODE === "mock";
 
 // Timer Persistence logic
 let remainingTime;
-let timerStart = Date.now();
-const startedAtISO = new Date().toISOString(); // Capture quiz start time for accurate tracking
+let timerStart = Date.now() - ((resumeData.total_time || 0) * 1000);
+const startedAtISO = resumeData.hasOwnProperty('started_at') ? resumeData.started_at : new Date().toISOString();
 
 if (IS_MOCK) {
   syncTimerWithServer();
@@ -1071,6 +1080,32 @@ function toggleFlag() {
     flagBtn.textContent = questionFlags[idx] ? '🚩 Flagged' : '🏳️ Flag';
     flagBtn.style.background = questionFlags[idx] ? 'var(--warning)' : 'var(--glass-bg)';
   }
+  autoSave();
+}
+
+// Continuous progress saving (Practice only)
+function autoSave() {
+  if (IS_MOCK || quizCompleted) return;
+  
+  const now = Date.now();
+  const currentElapsed = Math.floor((now - questionTimeStart) / 1000);
+  const tempTimes = [...questionTimes];
+  tempTimes[idx] += currentElapsed;
+  
+  const pauseData = {
+    module_id: QUIZ_NAME,
+    started_at: startedAtISO,
+    last_question_index: idx,
+    user_answers: userAnswers,
+    question_times: tempTimes,
+    question_flags: questionFlags,
+    total_time_seconds: Math.floor((now - timerStart) / 1000)
+  };
+  
+  // Use sendBeacon for non-blocking background save
+  navigator.sendBeacon('/api/pause-practice', 
+    new Blob([JSON.stringify(pauseData)], {type: 'application/json'})
+  );
 }
 
 function render(i){
@@ -1083,6 +1118,7 @@ function render(i){
   questionTimeStart = Date.now();
   
   idx = i;
+  autoSave(); // Save current index
   const q = currentQuestions[i];
   document.getElementById('qnum').textContent = (i+1) + ' / ' + total;
   document.getElementById('stem').innerHTML = q.stem ? q.stem : (q.title || ''); 
@@ -1093,7 +1129,17 @@ function render(i){
     label.className = 'choice-item';
     const isChecked = userAnswers[i] === c.id ? 'checked' : '';
     label.innerHTML = `<input type="radio" name="choice" value="${c.id}" id="opt-${j}" ${isChecked}> <div style="font-size:14px">${c.text ? c.text : ''}</div>`;
-    label.addEventListener('click', ()=> { document.getElementById('feedback').innerHTML=''; });
+    label.addEventListener('click', ()=> { 
+      document.getElementById('feedback').innerHTML=''; 
+      // Auto-save on choice selection
+      if (!IS_MOCK) {
+        const selectedInput = label.querySelector('input');
+        if (selectedInput) {
+          userAnswers[idx] = selectedInput.value;
+          autoSave();
+        }
+      }
+    });
     
     if (IS_MOCK) {
       label.addEventListener('click', ()=> {
@@ -1316,6 +1362,7 @@ document.getElementById('skip').addEventListener('click', ()=>{
   userAnswers[idx] = null;
   questionStatus[idx] = true;
   updateProgress();
+  autoSave();
   
   if(idx < total-1) render(idx+1);
 });
@@ -1335,6 +1382,7 @@ document.getElementById('submit').addEventListener('click', ()=>{
   userAnswers[idx] = chosen;
   questionStatus[idx] = true;
   updateProgress();
+  autoSave();
   
   const q = currentQuestions[idx];
   const correct = q.correct || null;
@@ -1726,11 +1774,15 @@ def remove_user_route():
 @app.route('/manage-users')
 @admin_required
 def manage_users():
-    users = db.get_all_users()
-    # Add validity status to each user
-    for user_id, user_data in users.items():
-        user_data['is_valid'] = is_user_valid(user_data)
-    return render_template_string(MANAGE_USERS_TEMPLATE, users=users)
+    users_list = db.get_all_users()
+    # Add validity status to each user with defensive checks
+    for user in users_list:
+        if not isinstance(user, dict): continue
+        # Ensure 'id' exists for the template
+        if 'id' not in user and 'user_id' in user:
+            user['id'] = user['user_id']
+        user['is_valid'] = is_user_valid(user)
+    return render_template_string(MANAGE_USERS_TEMPLATE, users=users_list)
 
 @app.route('/admin/migrate-ist')
 @admin_required
@@ -2529,8 +2581,23 @@ body.sidebar-collapsed .main-content{margin-left:0}
       </tr>
       {% for sub in topic.subtopics %}
       <tr>
-        <td class="subtopic-item"><a href="/{{ sub.full_name }}" class="subtopic-link">{{ sub.display_name }}</a></td>
-        <td class="text-right">{{ sub.complete }} of {{ sub.total }}</td>
+        <td class="subtopic-item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="subtopic-link">{{ sub.display_name }}</span>
+            <div style="display:flex;gap:8px">
+              {% if sub.status == 'in_progress' %}
+                <a href="/{{ sub.full_name }}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--warning);color:#000;border-radius:4px;text-decoration:none">Resume</a>
+              {% elif sub.status == 'completed' %}
+                <a href="/{{ sub.full_name }}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--success);color:#000;border-radius:4px;text-decoration:none">Review</a>
+              {% else %}
+                <a href="/{{ sub.full_name }}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--accent);color:#000;border-radius:4px;text-decoration:none">Start</a>
+              {% endif %}
+            </div>
+          </div>
+        </td>
+        <td class="text-right" style="color:{% if sub.status == 'completed' %}var(--success){% elif sub.status == 'in_progress' %}var(--warning){% else %}var(--text-secondary){% endif %}">
+          {{ sub.complete }} of {{ sub.total }}
+        </td>
         <td class="text-right">{{ sub.percent_correct if sub.percent_correct != '--' else '--' }}{% if sub.percent_correct != '--' %}%{% endif %}</td>
       </tr>
       {% endfor %}
@@ -3838,6 +3905,7 @@ def practice_dashboard():
     user_id = session.get('user_id')
     stats = db.get_user_quiz_stats(user_id)
     attempts = db.get_user_quiz_attempts(user_id, limit=1000)
+    paused_attempts = db.get_all_paused_attempts(user_id)
     
     # Load all module files to get total questions
     all_files = []
@@ -3878,10 +3946,30 @@ def practice_dashboard():
             # Prefix with sequence number
             display_name = f"{i+1}. {clean_name}"
             
-            # Find latest attempt for this module
+            # Find latest attempt for this module (completed)
             attempt = next((a for a in attempts if (a.get('quiz_name') == full_name or a.get('quiz_id') == full_name)), None)
-            m_comp = m['questions'] if attempt else 0
-            m_score = attempt.get('score_percent', '--') if attempt else '--'
+            
+            # Find paused attempt
+            paused_data = paused_attempts.get(full_name)
+            
+            # Determine status and progress
+            if attempt:
+                is_completed = True
+                status = 'completed'
+                m_comp = m['questions']
+                m_score = attempt.get('score_percent', '--')
+            elif paused_data:
+                is_completed = False
+                status = 'in_progress'
+                ans_list = paused_data.get('user_answers', [])
+                m_comp = sum(1 for a in ans_list if a is not None)
+                m_score = '--'
+            else:
+                is_completed = False
+                status = 'not_started'
+                m_comp = 0
+                m_score = '--'
+            
             topic_complete_q += m_comp
             if m_score != '--': topic_scores.append(m_score)
             
@@ -3890,7 +3978,8 @@ def practice_dashboard():
                 'display_name': display_name,
                 'total': m['questions'],
                 'complete': m_comp,
-                'percent_correct': m_score
+                'percent_correct': m_score,
+                'status': status
             })
         
         avg_topic_score = round(sum(topic_scores) / len(topic_scores), 0) if topic_scores else '--'
@@ -4100,6 +4189,19 @@ def file(filename):
         print(f"File not found: {FilePath}")
         questions = []
     
+    # Fetch saved progress if this is a module
+    resume_data = {}
+    if is_module:
+        paused = db.get_paused_attempt(session.get('user_id'), filename)
+        if paused:
+            resume_data = {
+                'last_index': paused.get('last_question_index', 0),
+                'user_answers': paused.get('user_answers', []),
+                'question_times': paused.get('question_times', []),
+                'question_flags': paused.get('question_flags', []),
+                'total_time': paused.get('total_time_seconds', 0)
+            }
+    
     return render_template_string(
         TEMPLATE,
         questions=questions,
@@ -4110,7 +4212,8 @@ def file(filename):
         mode=mode,
         time_limit=time_limit,
         user_role=session.get('user_role', 'user'),
-        quiz_title=filename
+        quiz_title=filename,
+        resume_data=resume_data
     )
 
 if __name__ == "__main__":
