@@ -927,24 +927,40 @@ function pausePractice() {
     total_time_seconds: Math.floor((now - timerStart) / 1000)
   };
   
-  // Use sendBeacon for reliability (works on page close)
-  const success = navigator.sendBeacon('/api/pause-practice', 
-    new Blob([JSON.stringify(pauseData)], {type: 'application/json'})
-  );
-  
-  if (success) {
-    // Redirect to menu after pausing
-    window.location.href = '/menu';
-  } else {
-    // Fallback to fetch
-    fetch('/api/pause-practice', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(pauseData)
-    }).then(() => {
-      window.location.href = '/menu';
-    });
+  // Disable button to prevent double-clicks
+  const pauseBtn = document.getElementById('pauseBtn');
+  if (pauseBtn) {
+    pauseBtn.disabled = true;
+    pauseBtn.textContent = '⏳ Saving...';
   }
+  
+  // Use fetch with async - wait for server confirmation before redirect
+  fetch('/api/pause-practice', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(pauseData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      console.log('✅ Practice paused successfully');
+      window.location.href = '/menu';
+    } else {
+      alert('Failed to pause: ' + (data.message || 'Unknown error'));
+      if (pauseBtn) {
+        pauseBtn.disabled = false;
+        pauseBtn.textContent = '⏸️ Pause';
+      }
+    }
+  })
+  .catch(err => {
+    console.error('Error pausing:', err);
+    alert('Failed to pause. Please try again.');
+    if (pauseBtn) {
+      pauseBtn.disabled = false;
+      pauseBtn.textContent = '⏸️ Pause';
+    }
+  });
 }
 
 // Auto-pause on tab close, refresh, or navigation (Practice only)
