@@ -861,7 +861,7 @@ function saveAttemptToServer(attemptData) {
 }
 
 // ========== PAUSE & RESUME FUNCTIONALITY (Practice Only) ==========
-const QUIZ_NAME = "{{ quiz_name }}";
+const QUIZ_NAME = "{{ quiz_title }}";
 let quizCompleted = false;
 
 function pausePractice() {
