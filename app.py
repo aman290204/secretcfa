@@ -3978,7 +3978,13 @@ def practice_dashboard():
                 status = 'in_progress'
                 ans_list = paused_data.get('user_answers', [])
                 m_comp = sum(1 for a in ans_list if a is not None)
-                m_score = '--'
+                
+                # Calculate accuracy for in-progress module
+                m_responses = paused_data.get('responses', [])
+                m_correct = sum(1 for r in m_responses if r.get('is_correct'))
+                m_attempted = len(m_responses)
+                m_score = round(m_correct / m_attempted * 100, 0) if m_attempted > 0 else '--'
+                if m_score != '--': m_score = int(m_score)
             else:
                 is_completed = False
                 status = 'not_started'

@@ -602,17 +602,18 @@ def get_user_quiz_stats(user_id: str) -> Dict:
     
     try:
         attempts = get_user_quiz_attempts(user_id, limit=1000)
+        paused_attempts = get_all_paused_attempts(user_id)
         
-        if not attempts:
+        all_attempts = attempts + list(paused_attempts.values())
+        
+        if not all_attempts:
             return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0, 'unique_questions_attempted': 0, 'questions_attempted_today': 0}
-        
-        total_score = sum(a.get('score_percent', 0) for a in attempts)
         
         # Count UNIQUE modules and mocks completed (for study plan progress)
         unique_modules = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'module')
         unique_mocks = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'mock')
         
-        # Calculate attempts completed today (total, not unique - for today's practice count)
+        # Calculate attempts completed today (completed only)
         today_str = get_ist_now().date().isoformat()
         today_attempts_list = [a for a in attempts if a.get('timestamp', '').startswith(today_str)]
         today_attempts_count = len(today_attempts_list)  # Total attempts today
@@ -620,29 +621,55 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         # Unique modules completed overall (for study plan bar)
         unique_completed = len(unique_modules) + len(unique_mocks)
         
-        # Count unique questions attempted (across all attempts)
+        # Count unique questions attempted and correctness/timing across all attempts
         unique_question_ids = set()
         questions_today = set()
-        for attempt in attempts:
+        
+        total_correct_global = 0
+        total_attempted_global = 0
+        
+        module_correct = 0
+        module_attempted = 0
+        mock_correct = 0
+        mock_attempted = 0
+
+        for attempt in all_attempts:
             responses = attempt.get('responses', [])
-            attempt_date = attempt.get('timestamp', '')[:10] if attempt.get('timestamp') else ''
+            attempt_date = attempt.get('timestamp') or attempt.get('paused_at')
+            if attempt_date:
+                attempt_date = attempt_date[:10]
+            
+            is_module = attempt.get('quiz_type') == 'module' or 'Module' in (attempt.get('quiz_name') or '')
+            is_mock = attempt.get('quiz_type') == 'mock' or 'Mock' in (attempt.get('quiz_name') or '')
+
             for resp in responses:
                 q_id = resp.get('question_id')
                 if q_id:
                     unique_question_ids.add(q_id)
                     if attempt_date == today_str:
                         questions_today.add(q_id)
+                
+                total_attempted_global += 1
+                if resp.get('is_correct'):
+                    total_correct_global += 1
+                
+                if is_module:
+                    module_attempted += 1
+                    if resp.get('is_correct'):
+                        module_correct += 1
+                elif is_mock:
+                    mock_attempted += 1
+                    if resp.get('is_correct'):
+                        mock_correct += 1
         
-        # Calculate separate average scores for modules and mocks
-        module_attempts = [a for a in attempts if a.get('quiz_type') == 'module']
-        mock_attempts = [a for a in attempts if a.get('quiz_type') == 'mock']
-        
-        module_avg = round(sum(a.get('score_percent', 0) for a in module_attempts) / len(module_attempts), 1) if module_attempts else 0
-        mock_avg = round(sum(a.get('score_percent', 0) for a in mock_attempts) / len(mock_attempts), 1) if mock_attempts else 0
+        # Calculate averages based on attempted questions
+        global_avg = round(total_correct_global / total_attempted_global * 100, 1) if total_attempted_global > 0 else 0
+        module_avg = round(module_correct / module_attempted * 100, 1) if module_attempted > 0 else 0
+        mock_avg = round(mock_correct / mock_attempted * 100, 1) if mock_attempted > 0 else 0
         
         return {
             'total_attempts': len(attempts),
-            'avg_score': round(total_score / len(attempts), 1) if attempts else 0,
+            'avg_score': global_avg,
             'avg_module_score': module_avg,
             'avg_mock_score': mock_avg,
             'modules_completed': len(unique_modules),
