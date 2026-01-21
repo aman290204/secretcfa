@@ -1092,6 +1092,19 @@ function autoSave() {
   const tempTimes = [...questionTimes];
   tempTimes[idx] += currentElapsed;
   
+  // Build responses array for stats calculation (incomplete modules)
+  const responses = [];
+  userAnswers.forEach((ans, i) => {
+    if (ans !== null) {
+      const q = questions[i];
+      responses.push({
+        is_correct: q.correct && ans === q.correct,
+        time_spent_seconds: tempTimes[i],
+        user_answer: ans
+      });
+    }
+  });
+
   const pauseData = {
     module_id: QUIZ_NAME,
     started_at: startedAtISO,
@@ -1099,6 +1112,7 @@ function autoSave() {
     user_answers: userAnswers,
     question_times: tempTimes,
     question_flags: questionFlags,
+    responses: responses,
     total_time_seconds: Math.floor((now - timerStart) / 1000)
   };
   
@@ -2166,6 +2180,7 @@ def pause_practice():
             'user_answers': data.get('user_answers', []),
             'question_times': data.get('question_times', []),
             'question_flags': data.get('question_flags', []),
+            'responses': data.get('responses', []),
             'total_time_seconds': data.get('total_time_seconds', 0),
             'status': 'paused'
         }
@@ -3996,72 +4011,73 @@ def practice_dashboard():
         total_c_all += topic_complete_q
 
     # Global metrics
-    avg_correct = stats.get('avg_module_score', 0)
     questions_taken = total_c_all
     total_questions = total_q_all
     completion_percent = round((questions_taken / total_questions * 100), 1) if total_questions > 0 else 0
     
-    # Calculate timing metrics from attempt responses
+    # Calculate timing metrics and accuracy from all attempts (completed and paused)
     all_answer_times = []
     correct_answer_times = []
     incorrect_answer_times = []
     session_durations = []
     
-    for attempt in attempts:
-        # Session duration from timestamps
-        started_at = attempt.get('started_at')
-        submitted_at = attempt.get('submitted_at')
-        time_spent = attempt.get('time_spent_seconds', 0)
+    total_correct_global = 0
+    total_attempted_global = 0
+    
+    # Process both completed and paused attempts for a unified stats view
+    all_attempts_to_process = list(attempts) + list(paused_attempts.values())
+    
+    for attempt in all_attempts_to_process:
+        is_paused = attempt.get('status') == 'paused'
         
+        # Session duration (only for completed or if total_time_seconds is set)
+        time_spent = attempt.get('time_spent_seconds', 0)
         if time_spent and time_spent > 0:
             session_durations.append(time_spent)
-        elif started_at and submitted_at:
-            from datetime import datetime
-            try:
-                start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-                end = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
-                duration = (end - start).total_seconds()
-                if 0 < duration < 86400:  # Sanity check: less than 24 hours
-                    session_durations.append(duration)
-            except:
-                pass
+        elif not is_paused:
+            started_at = attempt.get('started_at')
+            submitted_at = attempt.get('submitted_at')
+            if started_at and submitted_at:
+                from datetime import datetime
+                try:
+                    start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+                    end = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
+                    duration = (end - start).total_seconds()
+                    if 0 < duration < 86400:
+                        session_durations.append(duration)
+                except:
+                    pass
         
-        # Per-question timing from responses
+        # Per-question timing and correctness from responses
         responses = attempt.get('responses', [])
         for resp in responses:
+            total_attempted_global += 1
+            if resp.get('is_correct'):
+                total_correct_global += 1
+            
             time_sec = resp.get('time_spent_seconds', 0)
             if time_sec and time_sec > 0:
                 all_answer_times.append(time_sec)
                 if resp.get('is_correct'):
                     correct_answer_times.append(time_sec)
-                elif resp.get('user_answer'):  # Only incorrect if user answered
+                else:
                     incorrect_answer_times.append(time_sec)
     
-    # Compute averages - show "0s" if data exists but is 0, "--" only if no data
+    # Accuracy based on attempted questions (User Requirement)
+    avg_correct = round((total_correct_global / total_attempted_global * 100), 0) if total_attempted_global > 0 else 0
+    
+    # Compute averages - show "--" only if no questions have been attempted
     def format_time(seconds):
         if seconds >= 60:
             return f"{int(seconds // 60)}m {int(seconds % 60)}s"
         return f"{int(seconds)}s"
     
-    if len(all_answer_times) > 0:
-        avg_answer_time = format_time(sum(all_answer_times) / len(all_answer_times))
-    else:
-        avg_answer_time = "--" if len(attempts) == 0 else "0s"
+    has_attempts = total_attempted_global > 0
     
-    if len(correct_answer_times) > 0:
-        avg_correct_time = format_time(sum(correct_answer_times) / len(correct_answer_times))
-    else:
-        avg_correct_time = "--" if len(attempts) == 0 else "0s"
-    
-    if len(incorrect_answer_times) > 0:
-        avg_incorrect_time = format_time(sum(incorrect_answer_times) / len(incorrect_answer_times))
-    else:
-        avg_incorrect_time = "--" if len(attempts) == 0 else "0s"
-    
-    if len(session_durations) > 0:
-        avg_session_duration = format_time(sum(session_durations) / len(session_durations))
-    else:
-        avg_session_duration = "--" if len(attempts) == 0 else "0s"
+    avg_answer_time = format_time(sum(all_answer_times) / len(all_answer_times)) if all_answer_times else "--"
+    avg_correct_time = format_time(sum(correct_answer_times) / len(correct_answer_times)) if correct_answer_times else "--"
+    avg_incorrect_time = format_time(sum(incorrect_answer_times) / len(incorrect_answer_times)) if incorrect_answer_times else "--"
+    avg_session_duration = format_time(sum(session_durations) / len(session_durations)) if session_durations else "--"
     
     return render_template_string(
         PRACTICE_TEMPLATE,
