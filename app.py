@@ -5,9 +5,14 @@ import json, os
 from werkzeug.utils import secure_filename
 import re
 from html import unescape
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 import secrets
+
+# India Standard Time (UTC+5:30) for all timestamps
+IST = timezone(timedelta(hours=5, minutes=30))
+def get_ist_now():
+    return datetime.now(IST)
 
 # Import database functions for session management
 import database as db
@@ -21,6 +26,47 @@ app.config['SESSION_COOKIE_SECURE'] = 'RENDER' in os.environ  # True on Render, 
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# ---------- HEALTH CHECK SYSTEM FOR RENDER UPTIME ----------
+# Dedicated lightweight endpoint - NO auth, NO Redis, NO side effects
+
+@app.route('/health')
+def health_check():
+    """
+    Render uptime health check endpoint.
+    - No authentication required
+    - No Redis/database access
+    - No session handling
+    - Returns immediately with plain text 'OK'
+    """
+    return 'OK', 200, {'Content-Type': 'text/plain'}
+
+# Self-ping background thread to reduce cold starts
+def start_self_ping():
+    """Background thread that pings /health every 4 minutes"""
+    import threading
+    import urllib.request
+    
+    def ping_loop():
+        import time as t
+        # Get the base URL from environment or default to localhost
+        base_url = os.environ.get('RENDER_EXTERNAL_URL', 'http://localhost:5000')
+        health_url = f"{base_url}/health"
+        
+        while True:
+            t.sleep(240)  # 4 minutes
+            try:
+                urllib.request.urlopen(health_url, timeout=10)
+            except:
+                pass  # Silently ignore failures
+    
+    # Start daemon thread (won't block app shutdown)
+    ping_thread = threading.Thread(target=ping_loop, daemon=True)
+    ping_thread.start()
+
+# Start self-ping only on Render (not locally to avoid issues)
+if 'RENDER' in os.environ:
+    start_self_ping()
+
 # Track login history for users (format: {user_id: [{'timestamp': ..., 'ip': ..., 'user_agent': ..., 'is_current': bool}]})
 # login_history = {}  # Migrated to Redis
 
@@ -31,7 +77,7 @@ def add_to_history(session, quiz_data):
         session['history'] = []
     
     # Add timestamp
-    quiz_data['timestamp'] = datetime.now().isoformat()
+    quiz_data['timestamp'] = get_ist_now().isoformat()
     
     # Add to history (limit to 50 entries)
     session['history'].insert(0, quiz_data)
@@ -55,7 +101,7 @@ def add_to_recently_viewed(session, item_data):
                                  if item['name'] != item_data['name']]
     
     # Add timestamp
-    item_data['timestamp'] = datetime.now().isoformat()
+    item_data['timestamp'] = get_ist_now().isoformat()
     
     # Add to beginning of list (limit to 10 entries)
     session['recently_viewed'].insert(0, item_data)
@@ -163,7 +209,7 @@ def is_user_valid(user):
     try:
         from datetime import datetime
         expiry_date = datetime.fromisoformat(user['expiry'])
-        current_date = datetime.now()
+        current_date = get_ist_now()
         return current_date <= expiry_date
     except:
         return True  # Fallback to valid on parse error
@@ -1575,7 +1621,7 @@ def login():
     session_token = secrets.token_urlsafe(32)
     
     # Step 3: Store session in Redis with expiration
-    expires_at = datetime.now() + timedelta(days=10)
+    expires_at = get_ist_now() + timedelta(days=10)
     success = db.store_session(
         user_id=user_id,
         session_token=session_token,
@@ -1929,7 +1975,7 @@ def save_attempt():
         
         # Get timestamps from frontend (ISO format)
         started_at = data.get('started_at')  # ISO timestamp when quiz started
-        submitted_at = data.get('submitted_at') or datetime.now().isoformat()  # Fallback to now
+        submitted_at = data.get('submitted_at') or get_ist_now().isoformat()  # Fallback to now (IST)
         
         # If we have both timestamps, calculate time from them (more accurate)
         if started_at and submitted_at and mode != 'mock':
@@ -2030,7 +2076,7 @@ def pause_practice():
         # Build attempt data
         attempt_data = {
             'started_at': data.get('started_at'),
-            'paused_at': datetime.now().isoformat(),
+            'paused_at': get_ist_now().isoformat(),
             'last_question_index': data.get('last_question_index', 0),
             'user_answers': data.get('user_answers', []),
             'question_times': data.get('question_times', []),
