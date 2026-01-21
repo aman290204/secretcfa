@@ -573,6 +573,8 @@ TEMPLATE = """
 <style>
 :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
+/* Emoji color fix - ensures emojis render with native colors */
+.emoji,.sidebar-item-icon{-webkit-text-fill-color:initial;color:inherit}
 .container{max-width:1100px;margin:28px auto;padding:0 18px}
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;background:var(--glass-bg);backdrop-filter:blur(10px);padding:16px;border-radius:12px;border:1px solid var(--glass-border);animation:slideDown 0.4s ease}
 .exam-title{font-weight:700;font-size:18px;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -588,6 +590,12 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;backgrou
 .q-num{background:linear-gradient(135deg, var(--jewel-amethyst) 0%, var(--jewel-sapphire) 100%);padding:8px 12px;border-radius:8px;font-weight:700;transition:all 0.3s ease;color:#000;min-width:40px;text-align:center}
 .q-num:hover{transform:scale(1.1) rotate(5deg);box-shadow:0 0 20px rgba(167,139,250,0.4)}
 .question-text{font-size:15px;line-height:1.6;color:var(--text-secondary)}
+/* Table styling for question content - override white backgrounds */
+.question-text table,.card table,table{background:var(--card) !important;border-collapse:collapse;width:100%;margin:12px 0;border-radius:8px;overflow:hidden}
+.question-text table *,.card table *{background:transparent !important;color:var(--text-secondary) !important}
+.question-text th,.card th,th{background:rgba(255,255,255,0.05) !important;color:var(--text-primary) !important;padding:10px 12px;border:1px solid var(--card-border);font-weight:600;text-align:left}
+.question-text td,.card td,td{padding:10px 12px;border:1px solid var(--card-border);color:var(--text-secondary) !important}
+.question-text tr:nth-child(even),.card tr:nth-child(even){background:rgba(255,255,255,0.02) !important}
 .choices{margin-top:14px;border-top:1px solid var(--card-border);padding-top:14px}
 .choice-item{display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:8px;cursor:pointer;transition:all 0.2s ease;color:var(--text-secondary)}
 .choice-item:hover{background:rgba(167,139,250,0.1);transform:translateX(5px);border-radius:8px}
@@ -701,8 +709,12 @@ body.sidebar-collapsed .main-content{margin-left:0}
           </div>
           <button type="button" class="btn" id="flagBtn" onclick="toggleFlag()" style="background:var(--glass-bg);border:1px solid var(--glass-border)">🏳️ Flag</button>
           <button type="button" class="btn" id="skip">Skip</button>
+          {% if mode != 'mock' %}
+          <button type="button" class="btn" id="pauseBtn" onclick="pausePractice()" style="background:#f59e0b;color:#000">⏸️ Pause</button>
+          {% endif %}
           <button type="button" class="btn primary" id="submit">Submit Answer</button>
           <button type="button" class="btn primary" id="finish">✅ Finish & Save Score</button>
+
         </div>
       </div>
     </form>
@@ -848,6 +860,126 @@ function saveAttemptToServer(attemptData) {
     });
 }
 
+// ========== PAUSE & RESUME FUNCTIONALITY (Practice Only) ==========
+const QUIZ_NAME = "{{ quiz_name }}";
+let quizCompleted = false;
+
+function pausePractice() {
+  if (IS_MOCK) return; // Never pause mocks
+  
+  // Update time for current question before pausing
+  const now = Date.now();
+  questionTimes[idx] += Math.floor((now - questionTimeStart) / 1000);
+  
+  const pauseData = {
+    module_id: QUIZ_NAME,
+    started_at: startedAtISO,
+    last_question_index: idx,
+    user_answers: userAnswers,
+    question_times: questionTimes,
+    question_flags: questionFlags,
+    total_time_seconds: Math.floor((now - timerStart) / 1000)
+  };
+  
+  // Use sendBeacon for reliability (works on page close)
+  const success = navigator.sendBeacon('/api/pause-practice', 
+    new Blob([JSON.stringify(pauseData)], {type: 'application/json'})
+  );
+  
+  if (success) {
+    // Redirect to menu after pausing
+    window.location.href = '/menu';
+  } else {
+    // Fallback to fetch
+    fetch('/api/pause-practice', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(pauseData)
+    }).then(() => {
+      window.location.href = '/menu';
+    });
+  }
+}
+
+// Auto-pause on tab close, refresh, or navigation (Practice only)
+if (!IS_MOCK) {
+  window.addEventListener('beforeunload', function(e) {
+    if (quizCompleted) return; // Don't pause if already completed
+    
+    // Update time for current question
+    const now = Date.now();
+    questionTimes[idx] += Math.floor((now - questionTimeStart) / 1000);
+    
+    const pauseData = {
+      module_id: QUIZ_NAME,
+      started_at: startedAtISO,
+      last_question_index: idx,
+      user_answers: userAnswers,
+      question_times: questionTimes,
+      question_flags: questionFlags,
+      total_time_seconds: Math.floor((now - timerStart) / 1000)
+    };
+    
+    // sendBeacon is reliable even during page unload
+    navigator.sendBeacon('/api/pause-practice',
+      new Blob([JSON.stringify(pauseData)], {type: 'application/json'})
+    );
+  });
+  
+  // Check for paused attempt on page load
+  checkForPausedAttempt();
+}
+
+async function checkForPausedAttempt() {
+  try {
+    const res = await fetch(`/api/get-paused-practice?module_id=${encodeURIComponent(QUIZ_NAME)}`);
+    const data = await res.json();
+    
+    if (data.paused_attempt) {
+      const paused = data.paused_attempt;
+      
+      // Restore state
+      idx = paused.last_question_index || 0;
+      userAnswers = paused.user_answers || new Array(total).fill(null);
+      questionTimes = paused.question_times || new Array(total).fill(0);
+      questionFlags = paused.question_flags || new Array(total).fill(false);
+      
+      // Update questionStatus based on restored answers
+      for (let i = 0; i < userAnswers.length; i++) {
+        questionStatus[i] = userAnswers[i] !== null;
+      }
+      
+      // Adjust timer start to account for previously elapsed time
+      const previousElapsed = paused.total_time_seconds || 0;
+      timerStart = Date.now() - (previousElapsed * 1000);
+      
+      // Reset question time start
+      questionTimeStart = Date.now();
+      
+      // Re-render current question with restored state
+      render();
+      updateProgress();
+      
+      console.log(`✅ Resumed from question ${idx + 1}, elapsed time: ${previousElapsed}s`);
+    }
+  } catch (err) {
+    console.log('No paused attempt found or error:', err);
+  }
+}
+
+// Clear paused state on quiz completion
+function clearPausedState() {
+  if (IS_MOCK) return;
+  quizCompleted = true;
+  
+  fetch('/api/clear-paused-practice', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({module_id: QUIZ_NAME})
+  }).catch(err => console.log('Error clearing paused state:', err));
+}
+
+
 function updateProgress() {
   const answeredCount = questionStatus.filter(status => status).length;
   const progressPercent = (answeredCount / total) * 100;
@@ -979,6 +1111,9 @@ async function saveAttemptToServer(attemptData) {
 
 
 function showFinalResults() {
+  // Clear any paused state since quiz is now complete
+  clearPausedState();
+  
   // Calculate score (5 marks for correct, 0 for wrong/skipped)
   let correctCount = 0;
   let wrongCount = 0;
@@ -1876,7 +2011,97 @@ def clear_my_attempts():
         print(f"❌ Error clearing attempts: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+@app.route("/api/pause-practice", methods=["POST"])
+@login_required
+def pause_practice():
+    """Save paused practice attempt state to Redis (Practice modules only)"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        if not user_id:
+            return jsonify({"status": "error", "message": "Not logged in"}), 401
+        
+        module_id = data.get('module_id')
+        if not module_id:
+            return jsonify({"status": "error", "message": "module_id required"}), 400
+        
+        # Build attempt data
+        attempt_data = {
+            'started_at': data.get('started_at'),
+            'paused_at': datetime.now().isoformat(),
+            'last_question_index': data.get('last_question_index', 0),
+            'user_answers': data.get('user_answers', []),
+            'question_times': data.get('question_times', []),
+            'question_flags': data.get('question_flags', []),
+            'total_time_seconds': data.get('total_time_seconds', 0),
+            'status': 'paused'
+        }
+        
+        success = db.save_paused_attempt(user_id, module_id, attempt_data)
+        
+        if success:
+            return jsonify({"status": "success", "message": "Practice paused"})
+        else:
+            return jsonify({"status": "error", "message": "Failed to save"}), 500
+            
+    except Exception as e:
+        print(f"❌ Error pausing practice: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/get-paused-practice")
+@login_required
+def get_paused_practice():
+    """Get paused practice attempt for a specific module"""
+    try:
+        user_id = session.get('user_id')
+        module_id = request.args.get('module_id')
+        
+        if not user_id:
+            return jsonify({"status": "error", "message": "Not logged in"}), 401
+        
+        if not module_id:
+            return jsonify({"status": "error", "message": "module_id required"}), 400
+        
+        paused = db.get_paused_attempt(user_id, module_id)
+        
+        if paused:
+            return jsonify({"status": "success", "paused_attempt": paused})
+        else:
+            return jsonify({"status": "success", "paused_attempt": None})
+            
+    except Exception as e:
+        print(f"❌ Error getting paused practice: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/clear-paused-practice", methods=["POST"])
+@login_required
+def clear_paused_practice():
+    """Clear paused practice attempt (called on completion)"""
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        module_id = data.get('module_id')
+        
+        if not user_id:
+            return jsonify({"status": "error", "message": "Not logged in"}), 401
+        
+        if not module_id:
+            return jsonify({"status": "error", "message": "module_id required"}), 400
+        
+        db.clear_paused_attempt(user_id, module_id)
+        return jsonify({"status": "success", "message": "Paused state cleared"})
+        
+    except Exception as e:
+        print(f"❌ Error clearing paused practice: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/mock/timer-status")
+
 @login_required
 def mock_timer_status():
     """Authoritative endpoint to get or initialize a mock exam timer"""
@@ -2068,6 +2293,7 @@ PRACTICE_TEMPLATE = """
 <style>
 :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
+.emoji,.sidebar-item-icon{-webkit-text-fill-color:initial;color:inherit}
 .sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
 .sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
 .sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -2439,6 +2665,7 @@ MENU_TEMPLATE = """
 <style>
 :root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
 body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
+.emoji,.sidebar-item-icon{-webkit-text-fill-color:initial;color:inherit}
 .sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
 .sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
 .sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -2993,18 +3220,93 @@ EDIT_USER_TEMPLATE = """
 
 USER_PROFILE_TEMPLATE = """
 <!doctype html>
-<html><head><title>My Profile</title></head>
-<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
-<h1>My Profile</h1>
-{% if success %}<p style="color:green">{{ success }}</p>{% endif %}
-<form method="POST">
-<input type="text" name="name" value="{{ user.name }}" required><br>
-<input type="password" name="password" placeholder="New Password"><br>
-<button type="submit">Update Profile</button>
-</form>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Edit Profile - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--accent-dark:#8b5cf6;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1a202c 100%);color:var(--text-primary);min-height:100vh}
+.container{max-width:600px;margin:40px auto;padding:0 20px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:24px;font-weight:600;font-size:14px}
+.nav-back:hover{text-decoration:underline}
+.card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:32px;box-shadow:0 4px 24px rgba(0,0,0,0.3)}
+.card-header{margin-bottom:28px;text-align:center}
+.card-header h1{font-size:28px;font-weight:700;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.card-header p{color:var(--text-muted);margin:0;font-size:14px}
+.avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg, var(--accent) 0%, #d4af37 100%);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;font-weight:700;color:#000}
+.form-group{margin-bottom:20px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px}
+.form-group input{width:100%;padding:14px 16px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:15px;transition:all 0.2s;box-sizing:border-box}
+.form-group input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(167,139,250,0.15)}
+.form-group input::placeholder{color:var(--text-muted)}
+.form-hint{font-size:12px;color:var(--text-muted);margin-top:6px}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.btn-primary{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);color:#000}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(167,139,250,0.4)}
+.alert{padding:14px 16px;border-radius:10px;margin-bottom:20px;font-size:14px;font-weight:500}
+.alert-success{background:rgba(52,211,153,0.15);color:var(--success);border:1px solid rgba(52,211,153,0.3)}
+.alert-error{background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.3)}
+.info-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--card-border);font-size:14px}
+.info-row:last-child{border-bottom:none}
+.info-label{color:var(--text-muted)}
+.info-value{color:var(--text-primary);font-weight:600}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Dashboard</a>
+  
+  <div class="card">
+    <div class="card-header">
+      <div class="avatar">{{ user.name[:1]|upper if user.name else 'U' }}</div>
+      <h1>Edit Profile</h1>
+      <p>Update your account information</p>
+    </div>
+    
+    {% if success %}
+    <div class="alert alert-success">✓ {{ success }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">⚠ {{ error }}</div>
+    {% endif %}
+    
+    <form method="POST">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" value="{{ user.name }}" required placeholder="Enter your full name"/>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">New Password</label>
+        <input type="password" id="password" name="password" placeholder="Leave blank to keep current password"/>
+        <div class="form-hint">Only fill this if you want to change your password</div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+    </form>
+    
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--card-border)">
+      <div class="info-row">
+        <span class="info-label">User ID</span>
+        <span class="info-value">{{ user.user_id|default('N/A') }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Account Status</span>
+        <span class="info-value" style="color:var(--success)">{{ 'Active' if user.is_valid else 'Expired' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value">{{ user.role|default('user')|capitalize }}</span>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
 """
+
 
 MY_SCORES_TEMPLATE = """
 <!doctype html>

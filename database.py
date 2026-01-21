@@ -776,3 +776,123 @@ def get_session_details(user_id: str) -> List[Dict]:
     except Exception as e:
         print(f"❌ Error getting login history: {e}")
         return []
+
+
+# ========== PAUSED PRACTICE ATTEMPTS ==========
+
+def save_paused_attempt(user_id: str, module_id: str, attempt_data: Dict) -> bool:
+    """
+    Save a paused practice attempt to Redis.
+    Only ONE active paused attempt is allowed per module per user.
+    
+    Args:
+        user_id: The user ID
+        module_id: The module identifier (e.g., 'Module 1 Rates and Returns')
+        attempt_data: Dict containing:
+            - started_at: ISO timestamp when quiz started
+            - paused_at: ISO timestamp when paused
+            - last_question_index: Current question index
+            - responses: Array of response objects
+            - per_question_time: Array of time spent per question
+            - total_time_seconds: Total elapsed time
+            - status: 'paused' | 'active' | 'completed'
+            
+    Returns:
+        True if successful, False otherwise
+    """
+    if redis_client is None:
+        return False
+    
+    try:
+        key = f'paused_practice:{user_id}:{module_id}'
+        attempt_data['module_id'] = module_id
+        attempt_data['user_id'] = user_id
+        attempt_data['status'] = 'paused'
+        
+        redis_client.set(key, json.dumps(attempt_data))
+        print(f"💾 Paused attempt saved for user '{user_id}' on module '{module_id}'")
+        return True
+    except Exception as e:
+        print(f"❌ Error saving paused attempt: {e}")
+        return False
+
+
+def get_paused_attempt(user_id: str, module_id: str) -> Optional[Dict]:
+    """
+    Get a paused practice attempt for a specific module.
+    
+    Args:
+        user_id: The user ID
+        module_id: The module identifier
+        
+    Returns:
+        The paused attempt data dict, or None if not found
+    """
+    if redis_client is None:
+        return None
+    
+    try:
+        key = f'paused_practice:{user_id}:{module_id}'
+        data = redis_client.get(key)
+        if data:
+            return json.loads(data)
+        return None
+    except Exception as e:
+        print(f"❌ Error getting paused attempt: {e}")
+        return None
+
+
+def clear_paused_attempt(user_id: str, module_id: str) -> bool:
+    """
+    Clear a paused practice attempt (called on completion or explicit clear).
+    
+    Args:
+        user_id: The user ID
+        module_id: The module identifier
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if redis_client is None:
+        return False
+    
+    try:
+        key = f'paused_practice:{user_id}:{module_id}'
+        result = redis_client.delete(key)
+        if result:
+            print(f"🗑️ Cleared paused attempt for user '{user_id}' on module '{module_id}'")
+        return bool(result)
+    except Exception as e:
+        print(f"❌ Error clearing paused attempt: {e}")
+        return False
+
+
+def get_all_paused_attempts(user_id: str) -> Dict[str, Dict]:
+    """
+    Get all paused practice attempts for a user.
+    
+    Args:
+        user_id: The user ID
+        
+    Returns:
+        Dict mapping module_id to attempt data
+    """
+    if redis_client is None:
+        return {}
+    
+    try:
+        pattern = f'paused_practice:{user_id}:*'
+        keys = redis_client.keys(pattern)
+        result = {}
+        
+        for key in keys:
+            data = redis_client.get(key)
+            if data:
+                attempt = json.loads(data)
+                module_id = attempt.get('module_id', key.split(':')[-1])
+                result[module_id] = attempt
+        
+        return result
+    except Exception as e:
+        print(f"❌ Error getting all paused attempts: {e}")
+        return {}
