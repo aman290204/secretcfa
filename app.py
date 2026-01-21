@@ -1728,9 +1728,26 @@ def remove_user_route():
 def manage_users():
     users = db.get_all_users()
     # Add validity status to each user
-    for user in users:
-        user['is_valid'] = is_user_valid(user)
+    for user_id, user_data in users.items():
+        user_data['is_valid'] = is_user_valid(user_data)
     return render_template_string(MANAGE_USERS_TEMPLATE, users=users)
+
+@app.route('/admin/migrate-ist')
+@admin_required
+def migrate_ist_route():
+    """Trigger retrospective IST migration."""
+    try:
+        report = db.run_ist_migration()
+        return jsonify({
+            "status": "success",
+            "message": "IST Migration completed",
+            "report": report
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @app.route('/edit-user/<user_id>', methods=['GET', 'POST'])
 @admin_required

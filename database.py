@@ -8,8 +8,15 @@ import redis
 import json
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
+
+# India Standard Time (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """Get current datetime in India Standard Time (UTC+5:30)"""
+    return datetime.now(IST)
 
 # Redis connection - uses environment variable for connection string
 # Set REDIS_URL in your Render environment variables
@@ -109,11 +116,11 @@ def store_session(user_id: str, session_token: str, ip_address: str,
             'user_id': user_id,
             'ip_address': ip_address,
             'user_agent': user_agent,
-            'created_at': datetime.now().isoformat()
+            'created_at': get_ist_now().isoformat()
         }
         
         # Calculate TTL in seconds
-        ttl = int((expires_at - datetime.now()).total_seconds())
+        ttl = int((expires_at - get_ist_now()).total_seconds())
         if ttl <= 0:
             print(f"⚠️  Session expires_at is in the past")
             return False
@@ -505,7 +512,7 @@ def store_quiz_attempt(user_id: str, attempt_data: Dict) -> Optional[str]:
         # Add metadata to attempt
         attempt_data['attempt_id'] = attempt_id
         attempt_data['user_id'] = user_id
-        attempt_data['timestamp'] = datetime.now().isoformat()
+        attempt_data['timestamp'] = get_ist_now().isoformat()
         
         # Store attempt with key: quiz_attempt:{user_id}:{attempt_id}
         redis_client.set(
@@ -516,7 +523,7 @@ def store_quiz_attempt(user_id: str, attempt_data: Dict) -> Optional[str]:
         # Add to user's attempts list (sorted set with timestamp as score for ordering)
         redis_client.zadd(
             f'user_attempts:{user_id}',
-            {attempt_id: datetime.now().timestamp()}
+            {attempt_id: get_ist_now().timestamp()}
         )
         
         print(f"✅ Quiz attempt stored for user '{user_id}': {attempt_data.get('quiz_name')} - {attempt_data.get('score_percent')}%")
@@ -606,7 +613,7 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         unique_mocks = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'mock')
         
         # Calculate attempts completed today (total, not unique - for today's practice count)
-        today_str = datetime.now().date().isoformat()
+        today_str = get_ist_now().date().isoformat()
         today_attempts_list = [a for a in attempts if a.get('timestamp', '').startswith(today_str)]
         today_attempts_count = len(today_attempts_list)  # Total attempts today
         
@@ -896,3 +903,128 @@ def get_all_paused_attempts(user_id: str) -> Dict[str, Dict]:
     except Exception as e:
         print(f"❌ Error getting all paused attempts: {e}")
         return {}
+
+# ========== RETROSPECTIVE IST CONVERSION ==========
+
+def convert_timestamp_to_ist(timestamp_str: str) -> str:
+    """Convert a UTC timestamp string to IST (UTC+5:30)."""
+    if not timestamp_str or not isinstance(timestamp_str, str):
+        return timestamp_str
+    
+    try:
+        # Try parsing ISO format
+        if 'T' in timestamp_str:
+            if '+' in timestamp_str or 'Z' in timestamp_str:
+                # Already has timezone info
+                dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                dt_ist = dt.astimezone(IST)
+            else:
+                # Assume UTC, add offset
+                dt = datetime.fromisoformat(timestamp_str)
+                dt_ist = dt + timedelta(hours=5, minutes=30)
+                dt_ist = dt_ist.replace(tzinfo=IST)
+            
+            return dt_ist.isoformat()
+        return timestamp_str
+    except Exception as e:
+        print(f"⚠️ Could not convert timestamp '{timestamp_str}': {e}")
+        return timestamp_str
+
+def run_ist_migration() -> Dict:
+    """Run retrospective IST migration for all Redis data."""
+    report = {
+        'quiz_attempts': 0,
+        'paused_practice': 0,
+        'sessions': 0,
+        'users': 0,
+        'total': 0,
+        'errors': []
+    }
+    
+    try:
+        # 1. Migrate quiz attempts
+        attempt_keys = redis_client.keys('quiz_attempt:*')
+        for key in attempt_keys:
+            try:
+                data = redis_client.get(key)
+                if data:
+                    attempt = json.loads(data)
+                    modified = False
+                    for field in ['timestamp', 'started_at', 'submitted_at']:
+                        if field in attempt:
+                            old_val = attempt[field]
+                            new_val = convert_timestamp_to_ist(old_val)
+                            if old_val != new_val:
+                                attempt[field] = new_val
+                                modified = True
+                    if modified:
+                        redis_client.set(key, json.dumps(attempt))
+                        report['quiz_attempts'] += 1
+            except Exception as e:
+                report['errors'].append(f"Attempt {key}: {e}")
+
+        # 2. Migrate paused practice
+        pause_keys = redis_client.keys('paused_practice:*')
+        for key in pause_keys:
+            try:
+                data = redis_client.get(key)
+                if data:
+                    paused = json.loads(data)
+                    modified = False
+                    for field in ['paused_at', 'started_at']:
+                        if field in paused:
+                            old_val = paused[field]
+                            new_val = convert_timestamp_to_ist(old_val)
+                            if old_val != new_val:
+                                paused[field] = new_val
+                                modified = True
+                    if modified:
+                        redis_client.set(key, json.dumps(paused))
+                        report['paused_practice'] += 1
+            except Exception as e:
+                report['errors'].append(f"Paused {key}: {e}")
+
+        # 3. Migrate sessions
+        session_keys = redis_client.keys('session:*')
+        for key in session_keys:
+            try:
+                data = redis_client.get(key)
+                if data:
+                    sess = json.loads(data)
+                    if 'created_at' in sess:
+                        old_val = sess['created_at']
+                        new_val = convert_timestamp_to_ist(old_val)
+                        if old_val != new_val:
+                            sess['created_at'] = new_val
+                            ttl = redis_client.ttl(key)
+                            if ttl > 0:
+                                redis_client.setex(key, ttl, json.dumps(sess))
+                            else:
+                                redis_client.set(key, json.dumps(sess))
+                            report['sessions'] += 1
+            except Exception as e:
+                report['errors'].append(f"Session {key}: {e}")
+
+        # 4. Migrate users
+        user_keys = redis_client.keys('user:*')
+        for key in user_keys:
+            try:
+                data = redis_client.get(key)
+                if data:
+                    user_data = json.loads(data)
+                    if 'created_at' in user_data:
+                        old_val = user_data['created_at']
+                        new_val = convert_timestamp_to_ist(old_val)
+                        if old_val != new_val:
+                            user_data['created_at'] = new_val
+                            redis_client.set(key, json.dumps(user_data))
+                            report['users'] += 1
+            except Exception as e:
+                report['errors'].append(f"User {key}: {e}")
+
+        report['total'] = report['quiz_attempts'] + report['paused_practice'] + report['sessions'] + report['users']
+        
+    except Exception as e:
+        report['errors'].append(f"Global: {e}")
+        
+    return report
