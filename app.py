@@ -1151,11 +1151,9 @@ function render(i){
             const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
             
             autoSave({
-              attempted_delta: 1,
-              correct_delta: isCorrect ? 1 : 0,
+              question_id: q.id,
+              is_correct: isCorrect,
               time_spent_delta: qTime,
-              correct_time_delta: isCorrect ? qTime : 0,
-              incorrect_time_delta: isCorrect ? 0 : qTime,
               last_index: idx
             });
           } else {
@@ -1389,11 +1387,12 @@ document.getElementById('skip').addEventListener('click', ()=>{
   
   if (firstTime) {
     answeredInSession.push(idx);
+    const q = currentQuestions[idx];
     const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
     autoSave({
-        attempted_delta: 0, 
+        question_id: q.id,
+        is_correct: false, // Skips are considered incorrect for stats
         time_spent_delta: qTime,
-        incorrect_time_delta: qTime, // Skips count as incorrect time spent
         last_index: idx
     });
   } else {
@@ -1427,11 +1426,9 @@ document.getElementById('submit').addEventListener('click', ()=>{
       const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
       
       autoSave({
-          attempted_delta: 1,
-          correct_delta: isCorrect ? 1 : 0,
+          question_id: q.id,
+          is_correct: isCorrect,
           time_spent_delta: qTime,
-          correct_time_delta: isCorrect ? qTime : 0,
-          incorrect_time_delta: isCorrect ? 0 : qTime,
           last_index: idx
       });
   } else {
@@ -2146,7 +2143,27 @@ def save_attempt():
         # Store in Redis
         attempt_id = db.store_quiz_attempt(user_id, attempt_data)
         
+        # 3. Synchronize with Persistent Module Snapshot
         if attempt_id:
+            # We treat the completed attempt as a series of idempotent snapshot updates
+            responses = data.get('responses', [])
+            total_questions = data.get('total_questions', 1)
+            
+            # Sync metadata first
+            db.update_module_progress(user_id, quiz_id, {
+                'status': 'completed',
+                'total_questions': total_questions,
+                'last_index': total_questions - 1
+            })
+            
+            # Sync each question (idempotent)
+            for resp in responses:
+                db.update_module_progress(user_id, quiz_id, {
+                    'question_id': str(resp.get('question_id')),
+                    'is_correct': resp.get('is_correct', False),
+                    'time_spent_delta': 0, # Time is already accumulated in snapshot during session
+                    'total_questions': total_questions
+                })
             # Clear legacy session history if it exists to preserve memory
             if 'history' in session:
                 session.pop('history')

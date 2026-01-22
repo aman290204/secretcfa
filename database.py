@@ -728,8 +728,8 @@ def get_user_quiz_stats(user_id: str) -> Dict:
 
 def update_module_progress(user_id: str, module_id: str, payload: Dict) -> bool:
     """
-    Incrementally update the module_progress snapshot in Redis.
-    Payload can contain: attempted_delta, correct_delta, time_spent_delta, last_index, status, total_questions
+    Incrementally update the module_progress snapshot in Redis using idempotent question-level state.
+    Payload can contain: question_id, is_correct, time_spent_delta, last_index, status, total_questions
     """
     if redis_client is None:
         return False
@@ -742,6 +742,7 @@ def update_module_progress(user_id: str, module_id: str, payload: Dict) -> bool:
             snapshot = json.loads(existing)
         else:
             snapshot = {
+                "questions": {},
                 "attempted": 0,
                 "correct": 0,
                 "time_spent": 0,
@@ -752,36 +753,76 @@ def update_module_progress(user_id: str, module_id: str, payload: Dict) -> bool:
                 "updated_at": get_ist_now().isoformat()
             }
         
-        # Apply deltas
-        snapshot["attempted"] += payload.get('attempted_delta', 0)
-        snapshot["correct"] += payload.get('correct_delta', 0)
-        snapshot["time_spent"] += payload.get('time_spent_delta', 0)
-        snapshot["correct_time_spent"] = snapshot.get("correct_time_spent", 0) + payload.get('correct_time_delta', 0)
-        snapshot["incorrect_time_spent"] = snapshot.get("incorrect_time_spent", 0) + payload.get('incorrect_time_delta', 0)
-        
-        # Track daily progress deltas separately
-        if payload.get('attempted_delta', 0) > 0:
-            today_str = get_ist_now().date().isoformat()
-            daily_key = f"user_daily_attempted:{user_id}:{today_str}"
-            redis_client.incrby(daily_key, payload['attempted_delta'])
-            redis_client.expire(daily_key, 86400 * 7) # Keep 1 week
-        
+        # Ensure 'questions' key exists (for migration of old snapshots)
+        if "questions" not in snapshot:
+            snapshot["questions"] = {}
+
+        q_id = payload.get('question_id')
+        if q_id:
+            # Update specific question state
+            is_correct = payload.get('is_correct', False)
+            q_time_delta = payload.get('time_spent_delta', 0)
+            
+            # Initial track for daily progress if this is a NEW question attempt for this user overall today
+            is_new_for_module = q_id not in snapshot["questions"]
+            
+            if is_new_for_module:
+                snapshot["questions"][q_id] = {
+                    "attempted": True,
+                    "correct": is_correct,
+                    "time_spent": q_time_delta
+                }
+                # Track daily progress deltas separately for NEW module questions only
+                today_str = get_ist_now().date().isoformat()
+                daily_key = f"user_daily_attempted:{user_id}:{today_str}"
+                redis_client.incrby(daily_key, 1)
+                redis_client.expire(daily_key, 86400 * 7) # Keep 1 week
+            else:
+                # Update existing question state (idempotent for counters, additive for time)
+                q_state = snapshot["questions"][q_id]
+                q_state["correct"] = is_correct 
+                q_state["time_spent"] = q_state.get("time_spent", 0) + q_time_delta
+
+        # Apply general metadata
         if payload.get('last_index') is not None:
             snapshot["last_question_index"] = payload.get('last_index')
             
         if payload.get('status'):
             snapshot["status"] = payload.get('status')
+
+        # RECOMPUTE ALL AGGREGATES (Single Source of Truth is snapshot["questions"])
+        total_a = 0
+        total_c = 0
+        total_t = 0
+        total_c_t = 0
+        total_i_t = 0
+        
+        for qid, qdata in snapshot["questions"].items():
+            total_a += 1
+            if qdata.get("correct"):
+                total_c += 1
+                total_c_t += qdata.get("time_spent", 0)
+            else:
+                total_i_t += qdata.get("time_spent", 0)
+            total_t += qdata.get("time_spent", 0)
             
-        # Completion logic
-        total_q = payload.get('total_questions')
-        if total_q and snapshot["attempted"] >= total_q:
+        snapshot["attempted"] = total_a
+        snapshot["correct"] = total_c
+        snapshot["time_spent"] = total_t
+        snapshot["correct_time_spent"] = total_c_t
+        snapshot["incorrect_time_spent"] = total_i_t
+        
+        # Completion logic based on recomputed attempted count
+        total_q_module = payload.get('total_questions')
+        if total_q_module and total_a >= total_q_module:
             snapshot["status"] = "completed"
-        elif snapshot["attempted"] > 0 and snapshot["status"] != "completed":
+        elif total_a > 0 and snapshot.get("status") == "not_started":
             snapshot["status"] = "in_progress"
-            
+
         snapshot["updated_at"] = get_ist_now().isoformat()
         
-        return redis_client.set(key, json.dumps(snapshot))
+        redis_client.set(key, json.dumps(snapshot))
+        return True
     except Exception as e:
         print(f"❌ Error updating module progress: {e}")
         return False
@@ -855,16 +896,31 @@ def rebuild_snapshots_from_history(user_id: str) -> int:
             # Aggregate from responses if available
             correct_time = 0
             incorrect_time = 0
+            questions_map = {}
             responses = a.get('responses', [])
             for res in responses:
+                # Ensure we have a string ID for the question
+                q_id = str(res.get('question_id'))
+                if not q_id or q_id == 'None':
+                    continue
+                    
                 t = res.get('time_spent_seconds', 0)
-                if res.get('is_correct'):
+                is_correct = res.get('is_correct', False)
+                
+                questions_map[q_id] = {
+                    "attempted": True,
+                    "correct": is_correct,
+                    "time_spent": t
+                }
+                
+                if is_correct:
                     correct_time += t
                 else:
                     incorrect_time += t
 
             # Reconstruct snapshot
             snapshot = {
+                "questions": questions_map,
                 "attempted": (a.get('correct_count', 0) + a.get('wrong_count', 0)),
                 "correct": a.get('correct_count', 0),
                 "time_spent": a.get('time_spent_seconds', 0),
