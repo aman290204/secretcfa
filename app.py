@@ -2192,6 +2192,30 @@ def clear_my_attempts():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/reset-progress", methods=["POST"])
+@login_required
+def reset_progress():
+    """Reset all practice progress (snapshots and paused attempts)"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"status": "error", "message": "Not logged in"}), 401
+        
+        # Clear snapshots
+        db.clear_user_module_progress(user_id)
+        
+        # Clear paused attempts
+        db.clear_all_user_paused_attempts(user_id)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Practice progress has been reset."
+        })
+    except Exception as e:
+        print(f"❌ Error resetting progress: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/pause-practice", methods=["POST"])
 @login_required
 def pause_practice():
@@ -2659,6 +2683,22 @@ body.sidebar-collapsed .main-content{margin-left:0}
   </table>
 </div>
 </div>
+<script>
+document.querySelector('.reset-link').addEventListener('click', function(e) {
+  e.preventDefault();
+  if (confirm('Are you sure you want to reset all practice questions? This will clear your progress and accuracy for all modules.')) {
+    fetch('/api/reset-progress', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          window.location.reload();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      });
+  }
+});
+</script>
 </body>
 </html>
 """

@@ -419,6 +419,9 @@ def delete_user(user_id: str) -> bool:
         
         print(f"✅ User '{user_id}' deleted from Redis")
         return True
+    except Exception as e:
+        print(f"❌ Error deleting user: {e}")
+        return False
 
 
 def clear_user_module_progress(user_id: str) -> bool:
@@ -434,9 +437,6 @@ def clear_user_module_progress(user_id: str) -> bool:
         return True
     except Exception as e:
         print(f"❌ Error clearing module progress: {e}")
-        return False
-    except Exception as e:
-        print(f"❌ Error deleting user: {e}")
         return False
 
 
@@ -1015,6 +1015,21 @@ def get_all_paused_attempts(user_id: str) -> Dict[str, Dict]:
     except Exception as e:
         print(f"❌ Error getting all paused attempts: {e}")
         return {}
+
+
+def clear_all_user_paused_attempts(user_id: str) -> bool:
+    """Delete all paused practice attempts for a user."""
+    if redis_client is None:
+        return False
+    try:
+        pattern = f"paused_practice:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        if keys:
+            redis_client.delete(*keys)
+        return True
+    except Exception as e:
+        print(f"❌ Error clearing all paused attempts: {e}")
+        return False
 
 # ========== RETROSPECTIVE IST CONVERSION ==========
 
