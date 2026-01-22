@@ -635,7 +635,8 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         # Calculate attempts completed today (completed only)
         today_str = get_ist_now().date().isoformat()
         today_attempts_list = [a for a in attempts if a.get('timestamp', '').startswith(today_str)]
-        today_attempts_count = len(today_attempts_list)  # Total attempts today
+        today_attempts_count = len(today_attempts_list)  # Number of quizzes today
+        today_questions_count = sum(a.get('total_questions', 0) for a in today_attempts_list)
         
         # Unique modules completed overall (for study plan bar)
         unique_completed = len(unique_modules) + len(unique_mocks)
@@ -664,11 +665,47 @@ def get_user_quiz_stats(user_id: str) -> Dict:
                 module_correct += m_correct
                 module_attempted += m_attempted
         
-        # Calculate averages based on attempted questions only
+        # Real-time daily progress from Redis counter
+        daily_progress_key = f"user_daily_attempted:{user_id}:{today_str}"
+        daily_attempted = int(redis_client.get(daily_progress_key) or 0)
+        
+        # Merge snapshots and historical attempts for accuracy
         global_avg = round(total_correct_global / total_attempted_global * 100, 1) if total_attempted_global > 0 else 0
         module_avg = round(module_correct / module_attempted * 100, 1) if module_attempted > 0 else 0
         mock_avg = round(mock_correct / mock_attempted * 100, 1) if mock_attempted > 0 else 0
         
+        # Global/Mock Timing stats from History (since mocks don't use snapshots yet)
+        mock_total_c_time = 0
+        mock_total_i_time = 0
+        mock_total_c_count = 0
+        mock_total_i_count = 0
+        mock_total_time = 0
+        mock_total_q = 0
+        
+        for a in attempts:
+            if a.get('quiz_type') == 'mock':
+                mock_total_time += a.get('time_spent_seconds', 0)
+                mock_total_q += a.get('total_questions', 0)
+                mock_total_c_count += a.get('correct_count', 0)
+                mock_total_i_count += a.get('wrong_count', 0)
+                
+                # Try to get detailed timing from responses if available
+                responses = a.get('responses', [])
+                for res in responses:
+                    t = res.get('time_spent_seconds', 0)
+                    if res.get('is_correct'):
+                        mock_total_c_time += t
+                    else:
+                        mock_total_i_time += t
+
+        def fmt_time(s):
+            if s >= 60: return f"{int(s//60)}m {int(s%60)}s"
+            return f"{int(s)}s"
+
+        mock_avg_time = fmt_time(mock_total_time / mock_total_q) if mock_total_q > 0 else "--"
+        mock_avg_c_time = fmt_time(mock_total_c_time / mock_total_c_count) if mock_total_c_count > 0 else "--"
+        mock_avg_i_time = fmt_time(mock_total_i_time / mock_total_i_count) if mock_total_i_count > 0 else "--"
+
         return {
             'total_attempts': len(attempts),
             'avg_score': global_avg,
@@ -679,7 +716,10 @@ def get_user_quiz_stats(user_id: str) -> Dict:
             'today_attempts': today_attempts_count,
             'unique_completed': unique_completed,
             'unique_questions_attempted': total_attempted_global,
-            'questions_attempted_today': today_attempts_count
+            'questions_attempted_today': max(daily_attempted, today_questions_count),
+            'mock_avg_time': mock_avg_time,
+            'mock_avg_c_time': mock_avg_c_time,
+            'mock_avg_i_time': mock_avg_i_time
         }
     except Exception as e:
         print(f"❌ Error getting user quiz stats: {e}")
@@ -705,6 +745,8 @@ def update_module_progress(user_id: str, module_id: str, payload: Dict) -> bool:
                 "attempted": 0,
                 "correct": 0,
                 "time_spent": 0,
+                "correct_time_spent": 0,
+                "incorrect_time_spent": 0,
                 "last_question_index": 0,
                 "status": "not_started",
                 "updated_at": get_ist_now().isoformat()
@@ -714,6 +756,15 @@ def update_module_progress(user_id: str, module_id: str, payload: Dict) -> bool:
         snapshot["attempted"] += payload.get('attempted_delta', 0)
         snapshot["correct"] += payload.get('correct_delta', 0)
         snapshot["time_spent"] += payload.get('time_spent_delta', 0)
+        snapshot["correct_time_spent"] = snapshot.get("correct_time_spent", 0) + payload.get('correct_time_delta', 0)
+        snapshot["incorrect_time_spent"] = snapshot.get("incorrect_time_spent", 0) + payload.get('incorrect_time_delta', 0)
+        
+        # Track daily progress deltas separately
+        if payload.get('attempted_delta', 0) > 0:
+            today_str = get_ist_now().date().isoformat()
+            daily_key = f"user_daily_attempted:{user_id}:{today_str}"
+            redis_client.incrby(daily_key, payload['attempted_delta'])
+            redis_client.expire(daily_key, 86400 * 7) # Keep 1 week
         
         if payload.get('last_index') is not None:
             snapshot["last_question_index"] = payload.get('last_index')
@@ -801,11 +852,24 @@ def rebuild_snapshots_from_history(user_id: str) -> int:
         for m_id, a in modules.items():
             key = f"module_progress:{user_id}:{m_id}"
             
+            # Aggregate from responses if available
+            correct_time = 0
+            incorrect_time = 0
+            responses = a.get('responses', [])
+            for res in responses:
+                t = res.get('time_spent_seconds', 0)
+                if res.get('is_correct'):
+                    correct_time += t
+                else:
+                    incorrect_time += t
+
             # Reconstruct snapshot
             snapshot = {
                 "attempted": (a.get('correct_count', 0) + a.get('wrong_count', 0)),
                 "correct": a.get('correct_count', 0),
                 "time_spent": a.get('time_spent_seconds', 0),
+                "correct_time_spent": correct_time,
+                "incorrect_time_spent": incorrect_time,
                 "last_question_index": (a.get('total_questions', 1) - 1),
                 "status": "completed",
                 "updated_at": a.get('timestamp', get_ist_now().isoformat()),

@@ -1154,6 +1154,8 @@ function render(i){
               attempted_delta: 1,
               correct_delta: isCorrect ? 1 : 0,
               time_spent_delta: qTime,
+              correct_time_delta: isCorrect ? qTime : 0,
+              incorrect_time_delta: isCorrect ? 0 : qTime,
               last_index: idx
             });
           } else {
@@ -1391,6 +1393,7 @@ document.getElementById('skip').addEventListener('click', ()=>{
     autoSave({
         attempted_delta: 0, 
         time_spent_delta: qTime,
+        incorrect_time_delta: qTime, // Skips count as incorrect time spent
         last_index: idx
     });
   } else {
@@ -1427,6 +1430,8 @@ document.getElementById('submit').addEventListener('click', ()=>{
           attempted_delta: 1,
           correct_delta: isCorrect ? 1 : 0,
           time_spent_delta: qTime,
+          correct_time_delta: isCorrect ? qTime : 0,
+          incorrect_time_delta: isCorrect ? 0 : qTime,
           last_index: idx
       });
   } else {
@@ -2121,7 +2126,7 @@ def save_attempt():
             except:
                 pass  # Keep frontend time if parsing fails
         
-        # Prepare attempt data with full snapshot for review
+        # Prepare attempt data with full snapshot
         attempt_data = {
             'quiz_id': quiz_id,
             'quiz_name': data.get('quiz_name', 'Unknown Quiz'),
@@ -4097,6 +4102,8 @@ def practice_dashboard():
     total_attempted_global = 0
     total_correct_global = 0
     total_time_global = 0
+    total_correct_time_global = 0
+    total_incorrect_time_global = 0
     
     # Used for categories summing
     for topic_name, (start, end) in MODULE_CATEGORIES.items():
@@ -4131,6 +4138,8 @@ def practice_dashboard():
                 total_attempted_global += m_comp
                 total_correct_global += m_correct
                 total_time_global += snapshot.get('time_spent', 0)
+                total_correct_time_global += snapshot.get('correct_time_spent', 0)
+                total_incorrect_time_global += snapshot.get('incorrect_time_spent', 0)
             else:
                 status = 'not_started'
                 m_comp = 0
@@ -4174,10 +4183,9 @@ def practice_dashboard():
     avg_correct = round((total_correct_global / total_attempted_global * 100), 0) if total_attempted_global > 0 else 0
     avg_answer_time = format_time(total_time_global / total_attempted_global) if total_attempted_global > 0 else "--"
     
-    # Note: Correct/Incorrect specific timing is not supported by incremental module-level snapshot 
-    # unless we add more counters to it. Defaulting to same as avg_answer_time or "--"
-    avg_correct_time = "--"
-    avg_incorrect_time = "--"
+    # Correct/Incorrect specific timing from snapshots
+    avg_correct_time = format_time(total_correct_time_global / total_correct_global) if total_correct_global > 0 else "--"
+    avg_incorrect_time = format_time(total_incorrect_time_global / (total_attempted_global - total_correct_global)) if (total_attempted_global - total_correct_global) > 0 else "--"
     avg_session_duration = format_time(total_time_global / len(snapshots)) if snapshots else "--"
     
     return render_template_string(
@@ -4272,9 +4280,9 @@ def mock_dashboard():
         avg_correct=int(avg_correct),
         exams_taken=exams_taken,
         total_exams=total_exams,
-        avg_answer_time="--",
-        avg_correct_time="--",
-        avg_incorrect_time="--",
+        avg_answer_time=stats.get('mock_avg_time', '--'),
+        avg_correct_time=stats.get('mock_avg_c_time', '--'),
+        avg_incorrect_time=stats.get('mock_avg_i_time', '--'),
         mocks=mock_files
     )
 
