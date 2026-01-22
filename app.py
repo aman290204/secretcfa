@@ -473,10 +473,23 @@ def load_questions_from_file(path):
         return item if isinstance(item, dict) else {}
 
     questions = []
+    # Pass 1: Collect Stimuli / Vignette content
+    stimuli = {}
+    for it in items:
+        e = get_entry(it)
+        # Type can be "Stimulus" or title can be "Vignette"
+        if it.get("entryType") == "Stimulus" or e.get("title") == "Vignette":
+            # Stimuli often use "body" instead of "itemBody"
+            stim_content = e.get("body") or e.get("itemBody") or e.get("stem") or ""
+            if stim_content:
+                stimuli[it.get("id")] = preserve_html(stim_content)
+
+    # Pass 2: Process all items
     for it in items:
         e = get_entry(it)
 
-        raw_stem = e.get("itemBody") or e.get("stem") or e.get("question") or ""
+        # Stimuli use "body", regular questions use "itemBody"
+        raw_stem = e.get("itemBody") or e.get("body") or e.get("stem") or e.get("question") or ""
         # Preserve HTML for tables and other formatted content
         stem = preserve_html(raw_stem)
 
@@ -533,6 +546,10 @@ def load_questions_from_file(path):
         else:
             cleaned_feedback = {"neutral": preserve_html(feedback) if feedback else ""}
 
+        # Attach linked stimulus if available
+        stim_id = e.get("stimulusQuizEntryId")
+        attached_stim = stimuli.get(stim_id)
+
         q = {
             "id": it.get("id") or e.get("id") or "",
             "title": e.get("title") or "",
@@ -541,6 +558,7 @@ def load_questions_from_file(path):
             "correct": correct_id,
             "correct_label": correct_label,
             "feedback": cleaned_feedback,
+            "stimulus": attached_stim
         }
         questions.append(q)
 
@@ -694,6 +712,35 @@ input[type="radio"]{width:18px;height:18px;margin-top:3px}
 .choice-item table td[style*="text-align: center"], .choice-item table th[style*="text-align: center"]{
   text-align:center !important
 }
+
+/* GLOBAL THEME FIX: Override hardcoded white backgrounds and dark text in exhibits/vignettes */
+.question-text div[style*="background-color: #fff"], 
+.question-text div[style*="background-color:#fff"],
+.question-text div[style*="background-color: white"],
+.question-text div[style*="background-color:white"],
+.vignette-box div, .vignette-box, .question-text table, .choice-item table {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.question-text h1, .question-text h2, .question-text h3,
+.question-text div[style*="background-color"] h1,
+.question-text div[style*="background-color"] h2,
+.question-text div[style*="background-color"] h3 {
+  background-color: transparent !important;
+  color: var(--accent-light) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Ensure tables inside forced-dark divs also behave */
+.question-text div[style*="background-color"] table,
+.question-text div[style*="background-color"] td,
+.question-text div[style*="background-color"] th {
+  background-color: transparent !important;
+  color: var(--text-secondary) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
 .question-text p, .question-text span, .choice-item p, .choice-item span{line-height:1.6;margin:10px 0;color:var(--text-secondary)}
 @keyframes fadeIn {
   from {opacity: 0; transform: translateY(-10px);}
@@ -716,7 +763,6 @@ body.sidebar-collapsed .main-content{margin-left:0}
   <div class="topbar">
     <div>
       <div class="exam-title">{{ quiz_title }}</div>
-      <div style="color:var(--muted);font-size:13px">Source: {{ data_source }} | Mode: {{ mode|capitalize }}</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <a href="/menu" class="btn" style="text-decoration:none;color:#fff">🏠 Home</a>
@@ -1127,7 +1173,18 @@ function render(i){
   autoSave(); // Save current index
   const q = currentQuestions[i];
   document.getElementById('qnum').textContent = (i+1) + ' / ' + total;
-  document.getElementById('stem').innerHTML = q.stem ? q.stem : (q.title || ''); 
+  
+  let stemHtml = q.stem ? q.stem : (q.title || '');
+  if (q.stimulus) {
+      stemHtml = `
+        <div class="vignette-box" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border-left: 4px solid var(--accent); margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+          <div style="font-weight: bold; margin-bottom: 10px; color: var(--accent-light); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Vignette Context</div>
+          <div style="font-size: 15px; line-height: 1.6; color: var(--text-secondary);">${q.stimulus}</div>
+        </div>
+        <div class="question-stem">${stemHtml}</div>
+      `;
+  }
+  document.getElementById('stem').innerHTML = stemHtml;
   const choicesWrap = document.getElementById('choices');
   choicesWrap.innerHTML = '';
   (q.choices || []).forEach((c,j)=>{
