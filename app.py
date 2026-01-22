@@ -3964,27 +3964,27 @@ def practice_dashboard():
             # Find latest attempt for this module (completed)
             attempt = next((a for a in attempts if (a.get('quiz_name') == full_name or a.get('quiz_id') == full_name)), None)
             
-            # Find paused attempt
+            # Find paused attempt (Priority)
             paused_data = paused_attempts.get(full_name)
             
-            # Determine status and progress
-            if attempt:
-                is_completed = True
-                status = 'completed'
-                m_comp = m['questions']
-                m_score = attempt.get('score_percent', '--')
-            elif paused_data:
+            # Determine status and progress - PRIORITY: paused_data > attempt
+            if paused_data:
                 is_completed = False
                 status = 'in_progress'
                 ans_list = paused_data.get('user_answers', [])
                 m_comp = sum(1 for a in ans_list if a is not None)
                 
-                # Calculate accuracy for in-progress module
+                # Calculate accuracy for in-progress module (correct / attempted)
                 m_responses = paused_data.get('responses', [])
                 m_correct = sum(1 for r in m_responses if r.get('is_correct'))
                 m_attempted = len(m_responses)
                 m_score = round(m_correct / m_attempted * 100, 0) if m_attempted > 0 else '--'
                 if m_score != '--': m_score = int(m_score)
+            elif attempt:
+                is_completed = True
+                status = 'completed'
+                m_comp = m['questions']
+                m_score = attempt.get('score_percent', '--')
             else:
                 is_completed = False
                 status = 'not_started'
@@ -4021,7 +4021,7 @@ def practice_dashboard():
     total_questions = total_q_all
     completion_percent = round((questions_taken / total_questions * 100), 1) if total_questions > 0 else 0
     
-    # Calculate timing metrics and accuracy from all attempts (completed and paused)
+    # Calculate timing metrics and accuracy from LATEST state of each module
     all_answer_times = []
     correct_answer_times = []
     incorrect_answer_times = []
@@ -4030,19 +4030,29 @@ def practice_dashboard():
     total_correct_global = 0
     total_attempted_global = 0
     
-    # Process both completed and paused attempts for a unified stats view
-    all_attempts_to_process = list(attempts) + list(paused_attempts.values())
+    # Identify unique modules to avoid double-counting completed vs paused
+    unique_names = set()
+    for f in all_files: unique_names.add(f['name'])
     
-    for attempt in all_attempts_to_process:
-        is_paused = attempt.get('status') == 'paused'
+    latest_states_for_stats = []
+    for name in unique_names:
+        if name in paused_attempts:
+            latest_states_for_stats.append(paused_attempts[name])
+        else:
+            latest_comp = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
+            if latest_comp:
+                latest_states_for_stats.append(latest_comp)
+
+    for state in latest_states_for_stats:
+        is_paused = state.get('status') == 'paused'
         
-        # Session duration (only for completed or if total_time_seconds is set)
-        time_spent = attempt.get('time_spent_seconds', 0)
+        # Session duration
+        time_spent = state.get('time_spent_seconds', 0)
         if time_spent and time_spent > 0:
             session_durations.append(time_spent)
         elif not is_paused:
-            started_at = attempt.get('started_at')
-            submitted_at = attempt.get('submitted_at')
+            started_at = state.get('started_at')
+            submitted_at = state.get('submitted_at')
             if started_at and submitted_at:
                 from datetime import datetime
                 try:
@@ -4051,11 +4061,10 @@ def practice_dashboard():
                     duration = (end - start).total_seconds()
                     if 0 < duration < 86400:
                         session_durations.append(duration)
-                except:
-                    pass
+                except: pass
         
         # Per-question timing and correctness from responses
-        responses = attempt.get('responses', [])
+        responses = state.get('responses', [])
         for resp in responses:
             total_attempted_global += 1
             if resp.get('is_correct'):
@@ -4069,16 +4078,14 @@ def practice_dashboard():
                 else:
                     incorrect_answer_times.append(time_sec)
     
-    # Accuracy based on attempted questions (User Requirement)
+    # Accuracy based on attempted questions (User Requirement #2)
     avg_correct = round((total_correct_global / total_attempted_global * 100), 0) if total_attempted_global > 0 else 0
     
-    # Compute averages - show "--" only if no questions have been attempted
+    # Compute averages - show "--" strictly if no data (User Requirement #5)
     def format_time(seconds):
         if seconds >= 60:
             return f"{int(seconds // 60)}m {int(seconds % 60)}s"
         return f"{int(seconds)}s"
-    
-    has_attempts = total_attempted_global > 0
     
     avg_answer_time = format_time(sum(all_answer_times) / len(all_answer_times)) if all_answer_times else "--"
     avg_correct_time = format_time(sum(correct_answer_times) / len(correct_answer_times)) if correct_answer_times else "--"

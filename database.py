@@ -604,12 +604,28 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         attempts = get_user_quiz_attempts(user_id, limit=1000)
         paused_attempts = get_all_paused_attempts(user_id)
         
-        all_attempts = attempts + list(paused_attempts.values())
-        
-        if not all_attempts:
+        # Aggregate latest state per module/mock
+        all_module_names = set()
+        for a in attempts:
+            all_module_names.add(a.get('quiz_name') or a.get('quiz_id'))
+        for name in paused_attempts.keys():
+            all_module_names.add(name)
+            
+        latest_states = []
+        for name in all_module_names:
+            # Check paused first (Live Priority)
+            if name in paused_attempts:
+                latest_states.append(paused_attempts[name])
+            else:
+                # Find latest completed attempt
+                latest_comp = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
+                if latest_comp:
+                    latest_states.append(latest_comp)
+
+        if not latest_states:
             return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0, 'unique_questions_attempted': 0, 'questions_attempted_today': 0}
         
-        # Count UNIQUE modules and mocks completed (for study plan progress)
+        # Count UNIQUE modules and mocks completed (completed only)
         unique_modules = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'module')
         unique_mocks = set(a.get('quiz_name') or a.get('quiz_id') for a in attempts if a.get('quiz_type') == 'mock')
         
@@ -621,7 +637,7 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         # Unique modules completed overall (for study plan bar)
         unique_completed = len(unique_modules) + len(unique_mocks)
         
-        # Count unique questions attempted and correctness/timing across all attempts
+        # Count unique questions attempted and correctness/timing across LATEST states
         unique_question_ids = set()
         questions_today = set()
         
@@ -633,34 +649,34 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         mock_correct = 0
         mock_attempted = 0
 
-        for attempt in all_attempts:
-            responses = attempt.get('responses', [])
-            attempt_date = attempt.get('timestamp') or attempt.get('paused_at')
-            if attempt_date:
-                attempt_date = attempt_date[:10]
+        for state in latest_states:
+            responses = state.get('responses', [])
+            state_date = state.get('timestamp') or state.get('paused_at')
+            if state_date:
+                state_date = state_date[:10]
             
-            is_module = attempt.get('quiz_type') == 'module' or 'Module' in (attempt.get('quiz_name') or '')
-            is_mock = attempt.get('quiz_type') == 'mock' or 'Mock' in (attempt.get('quiz_name') or '')
-
+            is_mock = 'Mock' in (state.get('quiz_name') or '') or state.get('quiz_type') == 'mock'
+            is_module = not is_mock # Default to module if not explicitly mock
+            
             for resp in responses:
                 q_id = resp.get('question_id')
                 if q_id:
                     unique_question_ids.add(q_id)
-                    if attempt_date == today_str:
+                    if state_date == today_str:
                         questions_today.add(q_id)
                 
                 total_attempted_global += 1
                 if resp.get('is_correct'):
                     total_correct_global += 1
                 
-                if is_module:
-                    module_attempted += 1
-                    if resp.get('is_correct'):
-                        module_correct += 1
-                elif is_mock:
+                if is_mock:
                     mock_attempted += 1
                     if resp.get('is_correct'):
                         mock_correct += 1
+                else:
+                    module_attempted += 1
+                    if resp.get('is_correct'):
+                        module_correct += 1
         
         # Calculate averages based on attempted questions
         global_avg = round(total_correct_global / total_attempted_global * 100, 1) if total_attempted_global > 0 else 0
