@@ -1080,11 +1080,14 @@ function toggleFlag() {
     flagBtn.textContent = questionFlags[idx] ? '🚩 Flagged' : '🏳️ Flag';
     flagBtn.style.background = questionFlags[idx] ? 'var(--warning)' : 'var(--glass-bg)';
   }
-  autoSave();
+  autoSave({ last_index: idx });
 }
 
+// Track which questions were answered in THIS session to avoid double-counting increments
+let answeredInSession = [];
+
 // Continuous progress saving (Practice only)
-function autoSave() {
+function autoSave(eventData = null) {
   if (IS_MOCK || quizCompleted) return;
   
   const now = Date.now();
@@ -1092,19 +1095,6 @@ function autoSave() {
   const tempTimes = [...questionTimes];
   tempTimes[idx] += currentElapsed;
   
-  // Build responses array for stats calculation (incomplete modules)
-  const responses = [];
-  userAnswers.forEach((ans, i) => {
-    if (ans !== null) {
-      const q = questions[i];
-      responses.push({
-        is_correct: q.correct && ans === q.correct,
-        time_spent_seconds: tempTimes[i],
-        user_answer: ans
-      });
-    }
-  });
-
   const pauseData = {
     module_id: QUIZ_NAME,
     started_at: startedAtISO,
@@ -1112,8 +1102,10 @@ function autoSave() {
     user_answers: userAnswers,
     question_times: tempTimes,
     question_flags: questionFlags,
-    responses: responses,
-    total_time_seconds: Math.floor((now - timerStart) / 1000)
+    total_time_seconds: Math.floor((now - timerStart) / 1000),
+    total_questions: total,
+    // Incremental snapshot deltas
+    deltas: eventData
   };
   
   // Use sendBeacon for non-blocking background save
@@ -1149,8 +1141,24 @@ function render(i){
       if (!IS_MOCK) {
         const selectedInput = label.querySelector('input');
         if (selectedInput) {
+          const firstTime = !answeredInSession.includes(idx);
           userAnswers[idx] = selectedInput.value;
-          autoSave();
+          
+          if (firstTime) {
+            answeredInSession.push(idx);
+            const q = currentQuestions[idx];
+            const isCorrect = q.correct && (userAnswers[idx] === q.correct);
+            const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
+            
+            autoSave({
+              attempted_delta: 1,
+              correct_delta: isCorrect ? 1 : 0,
+              time_spent_delta: qTime,
+              last_index: idx
+            });
+          } else {
+            autoSave({ last_index: idx });
+          }
         }
       }
     });
@@ -1372,11 +1380,22 @@ document.getElementById('prev').addEventListener('click', ()=>{
   if(idx > 0) render(idx-1);
 });
 document.getElementById('skip').addEventListener('click', ()=>{
-  // Mark as answered (null means skipped)
+  const firstTime = !answeredInSession.includes(idx);
   userAnswers[idx] = null;
   questionStatus[idx] = true;
   updateProgress();
-  autoSave();
+  
+  if (firstTime) {
+    answeredInSession.push(idx);
+    const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
+    autoSave({
+        attempted_delta: 0, 
+        time_spent_delta: qTime,
+        last_index: idx
+    });
+  } else {
+    autoSave({ last_index: idx });
+  }
   
   if(idx < total-1) render(idx+1);
 });
@@ -1393,10 +1412,26 @@ document.getElementById('submit').addEventListener('click', ()=>{
   }
   
   const chosen = sel.value;
+  const firstTime = !answeredInSession.includes(idx);
   userAnswers[idx] = chosen;
   questionStatus[idx] = true;
   updateProgress();
-  autoSave();
+  
+  if (firstTime) {
+      answeredInSession.push(idx);
+      const q = currentQuestions[idx];
+      const isCorrect = q.correct && (chosen === q.correct);
+      const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
+      
+      autoSave({
+          attempted_delta: 1,
+          correct_delta: isCorrect ? 1 : 0,
+          time_spent_delta: qTime,
+          last_index: idx
+      });
+  } else {
+      autoSave({ last_index: idx });
+  }
   
   const q = currentQuestions[idx];
   const correct = q.correct || null;
@@ -2160,7 +2195,7 @@ def clear_my_attempts():
 @app.route("/api/pause-practice", methods=["POST"])
 @login_required
 def pause_practice():
-    """Save paused practice attempt state to Redis (Practice modules only)"""
+    """Save paused practice attempt state and update module snapshot"""
     try:
         user_id = session.get('user_id')
         data = request.get_json()
@@ -2172,7 +2207,14 @@ def pause_practice():
         if not module_id:
             return jsonify({"status": "error", "message": "module_id required"}), 400
         
-        # Build attempt data
+        # 1. Update Persistent Module Snapshot (The modern way)
+        deltas = data.get('deltas')
+        if deltas:
+            # Add total questions to deltas for completion logic
+            deltas['total_questions'] = data.get('total_questions')
+            db.update_module_progress(user_id, module_id, deltas)
+        
+        # 2. Save Full State (Legacy compatibility & deep resumption)
         attempt_data = {
             'started_at': data.get('started_at'),
             'paused_at': get_ist_now().isoformat(),
@@ -2180,17 +2222,13 @@ def pause_practice():
             'user_answers': data.get('user_answers', []),
             'question_times': data.get('question_times', []),
             'question_flags': data.get('question_flags', []),
-            'responses': data.get('responses', []),
             'total_time_seconds': data.get('total_time_seconds', 0),
             'status': 'paused'
         }
         
-        success = db.save_paused_attempt(user_id, module_id, attempt_data)
+        db.save_paused_attempt(user_id, module_id, attempt_data)
         
-        if success:
-            return jsonify({"status": "success", "message": "Practice paused"})
-        else:
-            return jsonify({"status": "error", "message": "Failed to save"}), 500
+        return jsonify({"status": "success", "message": "Progress saved"})
             
     except Exception as e:
         print(f"❌ Error pausing practice: {e}")
@@ -3939,59 +3977,57 @@ def practice_dashboard():
                     })
             except: continue
 
+    # Fetch snapshots for this user
+    snapshots = db.get_all_module_progress(user_id)
+    
     # Topic mapping
     topics_data = []
     total_q_all = 0
     total_c_all = 0
     
+    # Global metrics accumulators
+    total_attempted_global = 0
+    total_correct_global = 0
+    total_time_global = 0
+    
+    # Used for categories summing
     for topic_name, (start, end) in MODULE_CATEGORIES.items():
         topic_modules = [f for f in all_files if start <= f['num'] <= end]
-        # Sort topic_modules numerically by 'num'
         topic_modules.sort(key=lambda x: x['num'])
         
         topic_total_q = sum(m['questions'] for m in topic_modules)
         topic_complete_q = 0
+        topic_correct_q = 0
         topic_scores = []
         
         subtopics = []
         for i, m in enumerate(topic_modules):
             full_name = m['name']
-            # Clean display name: remove "Module 123 " prefix
             clean_name = re.sub(r'^Module\s+\d+\s*', '', full_name).strip()
-            # Prefix with sequence number
             display_name = f"{i+1}. {clean_name}"
             
-            # Find latest attempt for this module (completed)
-            attempt = next((a for a in attempts if (a.get('quiz_name') == full_name or a.get('quiz_id') == full_name)), None)
+            # Fetch snapshot for this module
+            snapshot = snapshots.get(full_name)
             
-            # Find paused attempt (Priority)
-            paused_data = paused_attempts.get(full_name)
-            
-            # Determine status and progress - PRIORITY: paused_data > attempt
-            if paused_data:
-                is_completed = False
-                status = 'in_progress'
-                ans_list = paused_data.get('user_answers', [])
-                m_comp = sum(1 for a in ans_list if a is not None)
-                
-                # Calculate accuracy for in-progress module (correct / attempted)
-                m_responses = paused_data.get('responses', [])
-                m_correct = sum(1 for r in m_responses if r.get('is_correct'))
-                m_attempted = len(m_responses)
-                m_score = round(m_correct / m_attempted * 100, 0) if m_attempted > 0 else '--'
+            if snapshot:
+                status = snapshot.get('status', 'not_started')
+                m_comp = snapshot.get('attempted', 0)
+                m_correct = snapshot.get('correct', 0)
+                m_score = round(m_correct / m_comp * 100, 0) if m_comp > 0 else '--'
                 if m_score != '--': m_score = int(m_score)
-            elif attempt:
-                is_completed = True
-                status = 'completed'
-                m_comp = m['questions']
-                m_score = attempt.get('score_percent', '--')
+                
+                # Global/Topic counters
+                topic_complete_q += m_comp
+                topic_correct_q += m_correct
+                
+                total_attempted_global += m_comp
+                total_correct_global += m_correct
+                total_time_global += snapshot.get('time_spent', 0)
             else:
-                is_completed = False
                 status = 'not_started'
                 m_comp = 0
                 m_score = '--'
             
-            topic_complete_q += m_comp
             if m_score != '--': topic_scores.append(m_score)
             
             subtopics.append({
@@ -4021,76 +4057,20 @@ def practice_dashboard():
     total_questions = total_q_all
     completion_percent = round((questions_taken / total_questions * 100), 1) if total_questions > 0 else 0
     
-    # Calculate timing metrics and accuracy from LATEST state of each module
-    all_answer_times = []
-    correct_answer_times = []
-    incorrect_answer_times = []
-    session_durations = []
-    
-    total_correct_global = 0
-    total_attempted_global = 0
-    
-    # Identify unique modules to avoid double-counting completed vs paused
-    unique_names = set()
-    for f in all_files: unique_names.add(f['name'])
-    
-    latest_states_for_stats = []
-    for name in unique_names:
-        if name in paused_attempts:
-            latest_states_for_stats.append(paused_attempts[name])
-        else:
-            latest_comp = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
-            if latest_comp:
-                latest_states_for_stats.append(latest_comp)
-
-    for state in latest_states_for_stats:
-        is_paused = state.get('status') == 'paused'
-        
-        # Session duration
-        time_spent = state.get('time_spent_seconds', 0)
-        if time_spent and time_spent > 0:
-            session_durations.append(time_spent)
-        elif not is_paused:
-            started_at = state.get('started_at')
-            submitted_at = state.get('submitted_at')
-            if started_at and submitted_at:
-                from datetime import datetime
-                try:
-                    start = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-                    end = datetime.fromisoformat(submitted_at.replace('Z', '+00:00'))
-                    duration = (end - start).total_seconds()
-                    if 0 < duration < 86400:
-                        session_durations.append(duration)
-                except: pass
-        
-        # Per-question timing and correctness from responses
-        responses = state.get('responses', [])
-        for resp in responses:
-            total_attempted_global += 1
-            if resp.get('is_correct'):
-                total_correct_global += 1
-            
-            time_sec = resp.get('time_spent_seconds', 0)
-            if time_sec and time_sec > 0:
-                all_answer_times.append(time_sec)
-                if resp.get('is_correct'):
-                    correct_answer_times.append(time_sec)
-                else:
-                    incorrect_answer_times.append(time_sec)
-    
-    # Accuracy based on attempted questions (User Requirement #2)
-    avg_correct = round((total_correct_global / total_attempted_global * 100), 0) if total_attempted_global > 0 else 0
-    
-    # Compute averages - show "--" strictly if no data (User Requirement #5)
+    # Timing averages derived from snapshots only
     def format_time(seconds):
         if seconds >= 60:
             return f"{int(seconds // 60)}m {int(seconds % 60)}s"
         return f"{int(seconds)}s"
     
-    avg_answer_time = format_time(sum(all_answer_times) / len(all_answer_times)) if all_answer_times else "--"
-    avg_correct_time = format_time(sum(correct_answer_times) / len(correct_answer_times)) if correct_answer_times else "--"
-    avg_incorrect_time = format_time(sum(incorrect_answer_times) / len(incorrect_answer_times)) if incorrect_answer_times else "--"
-    avg_session_duration = format_time(sum(session_durations) / len(session_durations)) if session_durations else "--"
+    avg_correct = round((total_correct_global / total_attempted_global * 100), 0) if total_attempted_global > 0 else 0
+    avg_answer_time = format_time(total_time_global / total_attempted_global) if total_attempted_global > 0 else "--"
+    
+    # Note: Correct/Incorrect specific timing is not supported by incremental module-level snapshot 
+    # unless we add more counters to it. Defaulting to same as avg_answer_time or "--"
+    avg_correct_time = "--"
+    avg_incorrect_time = "--"
+    avg_session_duration = format_time(total_time_global / len(snapshots)) if snapshots else "--"
     
     return render_template_string(
         PRACTICE_TEMPLATE,
@@ -4221,14 +4201,24 @@ def file(filename):
     # Fetch saved progress if this is a module
     resume_data = {}
     if is_module:
-        paused = db.get_paused_attempt(session.get('user_id'), filename)
-        if paused:
+        user_id = session.get('user_id')
+        paused = db.get_paused_attempt(user_id, filename)
+        snapshot = db.get_module_progress(user_id, filename)
+        
+        if snapshot or paused:
+            # Prioritize snapshot for index, but need paused for answers/flags
+            last_index = 0
+            if snapshot:
+                last_index = snapshot.get('last_question_index', 0)
+            elif paused:
+                last_index = paused.get('last_question_index', 0)
+                
             resume_data = {
-                'last_index': paused.get('last_question_index', 0),
-                'user_answers': paused.get('user_answers', []),
-                'question_times': paused.get('question_times', []),
-                'question_flags': paused.get('question_flags', []),
-                'total_time': paused.get('total_time_seconds', 0)
+                'last_index': last_index,
+                'user_answers': paused.get('user_answers', []) if paused else [],
+                'question_times': paused.get('question_times', []) if paused else [],
+                'question_flags': paused.get('question_flags', []) if paused else [],
+                'total_time': paused.get('total_time_seconds', 0) if paused else 0
             }
     
     return render_template_string(

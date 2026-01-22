@@ -408,6 +408,9 @@ def delete_user(user_id: str) -> bool:
         return False
     
     try:
+        # Clear module snapshots first
+        clear_user_module_progress(user_id)
+        
         # Delete user data
         redis_client.delete(f'user:{user_id}')
         
@@ -416,6 +419,22 @@ def delete_user(user_id: str) -> bool:
         
         print(f"✅ User '{user_id}' deleted from Redis")
         return True
+
+
+def clear_user_module_progress(user_id: str) -> bool:
+    """Delete all module progress snapshots for a user."""
+    if redis_client is None:
+        return False
+    try:
+        pattern = f"module_progress:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        if keys:
+            # redis_client.delete accepts multiple keys
+            redis_client.delete(*keys)
+        return True
+    except Exception as e:
+        print(f"❌ Error clearing module progress: {e}")
+        return False
     except Exception as e:
         print(f"❌ Error deleting user: {e}")
         return False
@@ -601,28 +620,12 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0}
     
     try:
+        # Get snapshots (Snapshots are the single source of truth for progress)
+        snapshots = get_all_module_progress(user_id)
+        # We still need raw attempts for "today's count" and completed module list
         attempts = get_user_quiz_attempts(user_id, limit=1000)
-        paused_attempts = get_all_paused_attempts(user_id)
         
-        # Aggregate latest state per module/mock
-        all_module_names = set()
-        for a in attempts:
-            all_module_names.add(a.get('quiz_name') or a.get('quiz_id'))
-        for name in paused_attempts.keys():
-            all_module_names.add(name)
-            
-        latest_states = []
-        for name in all_module_names:
-            # Check paused first (Live Priority)
-            if name in paused_attempts:
-                latest_states.append(paused_attempts[name])
-            else:
-                # Find latest completed attempt
-                latest_comp = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
-                if latest_comp:
-                    latest_states.append(latest_comp)
-
-        if not latest_states:
+        if not snapshots and not attempts:
             return {'total_attempts': 0, 'avg_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0, 'unique_questions_attempted': 0, 'questions_attempted_today': 0}
         
         # Count UNIQUE modules and mocks completed (completed only)
@@ -637,10 +640,7 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         # Unique modules completed overall (for study plan bar)
         unique_completed = len(unique_modules) + len(unique_mocks)
         
-        # Count unique questions attempted and correctness/timing across LATEST states
-        unique_question_ids = set()
-        questions_today = set()
-        
+        # Aggregators for global stats from snapshots
         total_correct_global = 0
         total_attempted_global = 0
         
@@ -649,36 +649,22 @@ def get_user_quiz_stats(user_id: str) -> Dict:
         mock_correct = 0
         mock_attempted = 0
 
-        for state in latest_states:
-            responses = state.get('responses', [])
-            state_date = state.get('timestamp') or state.get('paused_at')
-            if state_date:
-                state_date = state_date[:10]
+        for m_id, snapshot in snapshots.items():
+            is_mock = 'Mock' in m_id
+            m_correct = snapshot.get('correct', 0)
+            m_attempted = snapshot.get('attempted', 0)
             
-            is_mock = 'Mock' in (state.get('quiz_name') or '') or state.get('quiz_type') == 'mock'
-            is_module = not is_mock # Default to module if not explicitly mock
+            total_correct_global += m_correct
+            total_attempted_global += m_attempted
             
-            for resp in responses:
-                q_id = resp.get('question_id')
-                if q_id:
-                    unique_question_ids.add(q_id)
-                    if state_date == today_str:
-                        questions_today.add(q_id)
-                
-                total_attempted_global += 1
-                if resp.get('is_correct'):
-                    total_correct_global += 1
-                
-                if is_mock:
-                    mock_attempted += 1
-                    if resp.get('is_correct'):
-                        mock_correct += 1
-                else:
-                    module_attempted += 1
-                    if resp.get('is_correct'):
-                        module_correct += 1
+            if is_mock:
+                mock_correct += m_correct
+                mock_attempted += m_attempted
+            else:
+                module_correct += m_correct
+                module_attempted += m_attempted
         
-        # Calculate averages based on attempted questions
+        # Calculate averages based on attempted questions only
         global_avg = round(total_correct_global / total_attempted_global * 100, 1) if total_attempted_global > 0 else 0
         module_avg = round(module_correct / module_attempted * 100, 1) if module_attempted > 0 else 0
         mock_avg = round(mock_correct / mock_attempted * 100, 1) if mock_attempted > 0 else 0
@@ -692,12 +678,95 @@ def get_user_quiz_stats(user_id: str) -> Dict:
             'mocks_completed': len(unique_mocks),
             'today_attempts': today_attempts_count,
             'unique_completed': unique_completed,
-            'unique_questions_attempted': len(unique_question_ids),
-            'questions_attempted_today': len(questions_today)
+            'unique_questions_attempted': total_attempted_global,
+            'questions_attempted_today': today_attempts_count
         }
     except Exception as e:
         print(f"❌ Error getting user quiz stats: {e}")
         return {'total_attempts': 0, 'avg_score': 0, 'avg_module_score': 0, 'avg_mock_score': 0, 'modules_completed': 0, 'mocks_completed': 0, 'today_attempts': 0, 'unique_completed': 0, 'unique_questions_attempted': 0, 'questions_attempted_today': 0}
+
+
+def update_module_progress(user_id: str, module_id: str, payload: Dict) -> bool:
+    """
+    Incrementally update the module_progress snapshot in Redis.
+    Payload can contain: attempted_delta, correct_delta, time_spent_delta, last_index, status, total_questions
+    """
+    if redis_client is None:
+        return False
+    
+    key = f"module_progress:{user_id}:{module_id}"
+    try:
+        # Get existing snapshot or initialize new
+        existing = redis_client.get(key)
+        if existing:
+            snapshot = json.loads(existing)
+        else:
+            snapshot = {
+                "attempted": 0,
+                "correct": 0,
+                "time_spent": 0,
+                "last_question_index": 0,
+                "status": "not_started",
+                "updated_at": get_ist_now().isoformat()
+            }
+        
+        # Apply deltas
+        snapshot["attempted"] += payload.get('attempted_delta', 0)
+        snapshot["correct"] += payload.get('correct_delta', 0)
+        snapshot["time_spent"] += payload.get('time_spent_delta', 0)
+        
+        if payload.get('last_index') is not None:
+            snapshot["last_question_index"] = payload.get('last_index')
+            
+        if payload.get('status'):
+            snapshot["status"] = payload.get('status')
+            
+        # Completion logic
+        total_q = payload.get('total_questions')
+        if total_q and snapshot["attempted"] >= total_q:
+            snapshot["status"] = "completed"
+        elif snapshot["attempted"] > 0 and snapshot["status"] != "completed":
+            snapshot["status"] = "in_progress"
+            
+        snapshot["updated_at"] = get_ist_now().isoformat()
+        
+        return redis_client.set(key, json.dumps(snapshot))
+    except Exception as e:
+        print(f"❌ Error updating module progress: {e}")
+        return False
+
+
+def get_module_progress(user_id: str, module_id: str) -> Optional[Dict]:
+    """Get a single module's progress snapshot."""
+    if redis_client is None:
+        return None
+    key = f"module_progress:{user_id}:{module_id}"
+    try:
+        data = redis_client.get(key)
+        return json.loads(data) if data else None
+    except Exception:
+        return None
+
+
+def get_all_module_progress(user_id: str) -> Dict[str, Dict]:
+    """Get all module progress snapshots for a user."""
+    if redis_client is None:
+        return {}
+    try:
+        pattern = f"module_progress:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        results = {}
+        for key in keys:
+            data = redis_client.get(key)
+            if data:
+                # Extract module_id from key
+                k_str = key.decode('utf-8') if isinstance(key, bytes) else key
+                module_id = k_str.split(':')[-1]
+                results[module_id] = json.loads(data)
+        return results
+    except Exception as e:
+        print(f"❌ Error getting all module progress: {e}")
+        return {}
 
 
 def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:
