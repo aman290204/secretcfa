@@ -769,6 +769,58 @@ def get_all_module_progress(user_id: str) -> Dict[str, Dict]:
         return {}
 
 
+def rebuild_snapshots_from_history(user_id: str) -> int:
+    """
+    Reconstruct module_progress snapshots from historical quiz_attempts.
+    This is useful for 'restoring' progress after a migration or reset.
+    Returns: Number of modules processed.
+    """
+    if redis_client is None:
+        return 0
+    
+    try:
+        # Get all attempts
+        attempts = get_user_quiz_attempts(user_id, limit=1000)
+        if not attempts:
+            return 0
+            
+        # Group by module
+        modules = {}
+        for a in attempts:
+            if a.get('quiz_type') != 'module':
+                continue
+            
+            m_id = a.get('quiz_name') or a.get('quiz_id')
+            if not m_id:
+                continue
+            
+            # Since we only keep ONE latest attempt, this is easy
+            modules[m_id] = a
+            
+        count = 0
+        for m_id, a in modules.items():
+            key = f"module_progress:{user_id}:{m_id}"
+            
+            # Reconstruct snapshot
+            snapshot = {
+                "attempted": (a.get('correct_count', 0) + a.get('wrong_count', 0)),
+                "correct": a.get('correct_count', 0),
+                "time_spent": a.get('time_spent_seconds', 0),
+                "last_question_index": (a.get('total_questions', 1) - 1),
+                "status": "completed",
+                "updated_at": a.get('timestamp', get_ist_now().isoformat()),
+                "is_restored": True
+            }
+            
+            redis_client.set(key, json.dumps(snapshot))
+            count += 1
+            
+        return count
+    except Exception as e:
+        print(f"❌ Error rebuilding snapshots: {e}")
+        return 0
+
+
 def delete_quiz_attempt(user_id: str, attempt_id: str) -> bool:
     """
     Delete a specific quiz attempt.

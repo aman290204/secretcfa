@@ -2216,6 +2216,26 @@ def reset_progress():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/api/restore-progress", methods=["POST"])
+@login_required
+def restore_progress():
+    """Restore all practice progress snapshots from historical quiz attempts"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"status": "error", "message": "Not logged in"}), 401
+        
+        count = db.rebuild_snapshots_from_history(user_id)
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Successfully restored {count} module snapshots from your history."
+        })
+    except Exception as e:
+        print(f"❌ Error restoring progress: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/api/pause-practice", methods=["POST"])
 @login_required
 def pause_practice():
@@ -2593,7 +2613,10 @@ body.sidebar-collapsed .main-content{margin-left:0}
       <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</button>
       <h1>Dashboard</h1>
     </div>
-    <a href="#" class="reset-link">Reset Questions</a>
+    <div style="display:flex;gap:15px">
+      <a href="#" class="restore-link" style="color:var(--success);text-decoration:none;font-size:14px;font-weight:600">Restore Responses</a>
+      <a href="#" class="reset-link">Reset Questions</a>
+    </div>
   </div>
   <div class="completion-section">
     <span class="completion-label">Completion</span>
@@ -2697,6 +2720,26 @@ document.querySelector('.reset-link').addEventListener('click', function(e) {
         }
       });
   }
+});
+
+document.querySelector('.restore-link').addEventListener('click', function(e) {
+  e.preventDefault();
+  const btn = this;
+  btn.textContent = 'Restoring...';
+  btn.style.pointerEvents = 'none';
+  
+  fetch('/api/restore-progress', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert(data.message);
+        window.location.reload();
+      } else {
+        alert('Error: ' + data.message);
+        btn.textContent = 'Restore Responses';
+        btn.style.pointerEvents = 'auto';
+      }
+    });
 });
 </script>
 </body>
@@ -3075,6 +3118,7 @@ body.sidebar-collapsed .main-content{margin-left:0}
       </div>
       <div class="user-actions">
         <span class="user-info">👤 {{ session.user_name }}</span>
+        <button id="restoreBtn" class="btn btn-secondary" onclick="restoreProgress(this)" style="color:var(--success)">🔄 Restore</button>
         <a href="/edit-profile" class="btn btn-secondary">👤 Profile</a>
         <button id="sessionDetailsBtn" class="btn btn-secondary" onclick="openSessionModal()">🔐 Sessions</button>
         <a href="/logout" class="btn btn-logout">🔓 Logout</a>
@@ -3268,6 +3312,30 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('examDate').textContent = examDate.toLocaleDateString('en-GB', options).split('/').join('-');
   }
 });
+
+function restoreProgress(btn) {
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '🔄 Restoring...';
+  btn.style.pointerEvents = 'none';
+  
+  fetch('/api/restore-progress', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert(data.message);
+        window.location.reload();
+      } else {
+        alert('Error: ' + data.message);
+        btn.innerHTML = originalText;
+        btn.style.pointerEvents = 'auto';
+      }
+    })
+    .catch(err => {
+      alert('Network error: ' + err);
+      btn.innerHTML = originalText;
+      btn.style.pointerEvents = 'auto';
+    });
+}
 
 function updateExamDate(newDate) {
   fetch('/api/update-exam-date', {
