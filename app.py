@@ -1201,21 +1201,23 @@ function render(i){
           const firstTime = !answeredInSession.includes(idx);
           userAnswers[idx] = selectedInput.value;
           
+          // Always recalculate correctness based on the latest answer
+          const q = currentQuestions[idx];
+          const isCorrect = q.correct && (userAnswers[idx] === q.correct);
+          const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
+          
           if (firstTime) {
             answeredInSession.push(idx);
-            const q = currentQuestions[idx];
-            const isCorrect = q.correct && (userAnswers[idx] === q.correct);
-            const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
-            
-            autoSave({
-              question_id: q.id,
-              is_correct: isCorrect,
-              time_spent_delta: qTime,
-              last_index: idx
-            });
-          } else {
-            autoSave({ last_index: idx });
           }
+          
+          // Always save the latest answer with updated correctness
+          autoSave({
+            question_id: q.id,
+            is_correct: isCorrect,
+            time_spent_delta: qTime,
+            last_index: idx,
+            answer_changed: !firstTime  // Flag to indicate this is an answer change
+          });
         }
       }
     });
@@ -1476,23 +1478,24 @@ document.getElementById('submit').addEventListener('click', ()=>{
   questionStatus[idx] = true;
   updateProgress();
   
+  // Always recalculate correctness based on the latest answer
+  const q = currentQuestions[idx];
+  const isCorrect = q.correct && (chosen === q.correct);
+  const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
+  
   if (firstTime) {
       answeredInSession.push(idx);
-      const q = currentQuestions[idx];
-      const isCorrect = q.correct && (chosen === q.correct);
-      const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
-      
-      autoSave({
-          question_id: q.id,
-          is_correct: isCorrect,
-          time_spent_delta: qTime,
-          last_index: idx
-      });
-  } else {
-      autoSave({ last_index: idx });
   }
   
-  const q = currentQuestions[idx];
+  // Always save the latest answer with updated correctness (fixes answer change tracking)
+  autoSave({
+      question_id: q.id,
+      is_correct: isCorrect,
+      time_spent_delta: qTime,
+      last_index: idx,
+      answer_changed: !firstTime  // Flag to indicate this is an answer change
+  });
+  
   const correct = q.correct || null;
   
   let resultHTML = '';
@@ -4425,7 +4428,35 @@ def file(filename):
         resume_data=resume_data
     )
 
+# ========== ADMIN ONE-TIME FIX: Rebuild All User Snapshots ==========
+@app.route('/admin/rebuild-all-snapshots', methods=['POST'])
+@admin_required
+def rebuild_all_snapshots():
+    """
+    One-time admin endpoint to rebuild all user progress snapshots from quiz history.
+    This fixes average score calculations for all users retrospectively.
+    """
+    try:
+        all_users = db.get_all_users()
+        results = {'total_users': len(all_users), 'processed': 0, 'modules_rebuilt': 0, 'errors': []}
+        
+        for user in all_users:
+            user_id = user.get('id')
+            if not user_id:
+                continue
+            try:
+                count = db.rebuild_snapshots_from_history(user_id)
+                results['modules_rebuilt'] += count
+                results['processed'] += 1
+            except Exception as e:
+                results['errors'].append({'user_id': user_id, 'error': str(e)})
+        
+        return jsonify({'status': 'success', 'message': 'Snapshots rebuilt successfully', 'results': results})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 if __name__ == "__main__":
+
     # Initialize Redis database connection
     print("="* 50)
     print("🚀 Starting CFA Level 1 Quiz Application")
