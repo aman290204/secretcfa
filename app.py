@@ -3,6 +3,7 @@ from flask import Flask, render_template_string, jsonify, send_file, abort, requ
 from functools import wraps
 import json, os
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 import re
 from html import unescape
 from datetime import datetime, timedelta, timezone
@@ -18,6 +19,8 @@ def get_ist_now():
 import database as db
 
 app = Flask(__name__)
+# Configure app to trust proxy headers from Render/Cloudflare/Nginx
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')  # Use environment variable in production
 
 # Session configuration for Render - make it work in both local and deployed environments
@@ -66,6 +69,24 @@ def start_self_ping():
 # Start self-ping only on Render (not locally to avoid issues)
 if 'RENDER' in os.environ:
     start_self_ping()
+
+# ========== CLIENT IP DETECTION (works behind proxies) ==========
+def get_client_ip():
+    """Get the real client IP address, even when behind proxies like Render/Cloudflare"""
+    # Cloudflare-specific header (most reliable)
+    if request.headers.get('CF-Connecting-IP'):
+        return request.headers.get('CF-Connecting-IP')
+    
+    # Standard forwarded header (may contain multiple IPs: client, proxy1, proxy2)
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    
+    # Alternative real IP header
+    if request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    
+    # Fallback to direct connection IP (only works if not behind proxy)
+    return request.remote_addr
 
 # Track login history for users (format: {user_id: [{'timestamp': ..., 'ip': ..., 'user_agent': ..., 'is_current': bool}]})
 # login_history = {}  # Migrated to Redis
@@ -1797,17 +1818,28 @@ def login():
     
     # Step 3: Store session in Redis with expiration
     expires_at = get_ist_now() + timedelta(days=10)
+    client_ip = get_client_ip() or 'Unknown'
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    
     success = db.store_session(
         user_id=user_id,
         session_token=session_token,
-        ip_address=request.remote_addr or 'Unknown',
-        user_agent=request.headers.get('User-Agent', 'Unknown'),
+        ip_address=client_ip,
+        user_agent=user_agent,
         expires_at=expires_at
     )
     
     if not success:
         return render_template_string(LOGIN_TEMPLATE, 
             error="Session storage failed. Please check Redis connection.")
+    
+    # Track login history (last 20 logins)
+    db.add_login_history(user_id, {
+        'timestamp': get_ist_now().isoformat(),
+        'ip_address': client_ip,
+        'user_agent': user_agent,
+        'session_token': session_token[:8] + '...'  # Only store partial token for privacy
+    })
     
     # Step 4: Create JWT token with session token embedded
     jwt_token = create_jwt_token(
@@ -1824,7 +1856,7 @@ def login():
     session['user_role'] = user.get('role', 'user')
     session.modified = True
     
-    print(f"✅ User '{user_id}' logged in successfully")
+    print(f"✅ User '{user_id}' logged in successfully from {client_ip}")
     
     # Redirect to menu for all users
     return redirect(url_for('menu'))
