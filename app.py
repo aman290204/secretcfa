@@ -1222,23 +1222,21 @@ function render(i){
           const firstTime = !answeredInSession.includes(idx);
           userAnswers[idx] = selectedInput.value;
           
-          // Always recalculate correctness based on the latest answer
-          const q = currentQuestions[idx];
-          const isCorrect = q.correct && (userAnswers[idx] === q.correct);
-          const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
-          
           if (firstTime) {
             answeredInSession.push(idx);
+            const q = currentQuestions[idx];
+            const isCorrect = q.correct && (userAnswers[idx] === q.correct);
+            const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
+            
+            autoSave({
+              question_id: q.id,
+              is_correct: isCorrect,
+              time_spent_delta: qTime,
+              last_index: idx
+            });
+          } else {
+            autoSave({ last_index: idx });
           }
-          
-          // Always save the latest answer with updated correctness
-          autoSave({
-            question_id: q.id,
-            is_correct: isCorrect,
-            time_spent_delta: qTime,
-            last_index: idx,
-            answer_changed: !firstTime  // Flag to indicate this is an answer change
-          });
         }
       }
     });
@@ -1499,24 +1497,23 @@ document.getElementById('submit').addEventListener('click', ()=>{
   questionStatus[idx] = true;
   updateProgress();
   
-  // Always recalculate correctness based on the latest answer
-  const q = currentQuestions[idx];
-  const isCorrect = q.correct && (chosen === q.correct);
-  const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
-  
   if (firstTime) {
       answeredInSession.push(idx);
+      const q = currentQuestions[idx];
+      const isCorrect = q.correct && (chosen === q.correct);
+      const qTime = questionTimes[idx] + Math.floor((Date.now() - questionTimeStart) / 1000);
+      
+      autoSave({
+          question_id: q.id,
+          is_correct: isCorrect,
+          time_spent_delta: qTime,
+          last_index: idx
+      });
+  } else {
+      autoSave({ last_index: idx });
   }
   
-  // Always save the latest answer with updated correctness (fixes answer change tracking)
-  autoSave({
-      question_id: q.id,
-      is_correct: isCorrect,
-      time_spent_delta: qTime,
-      last_index: idx,
-      answer_changed: !firstTime  // Flag to indicate this is an answer change
-  });
-  
+  const q = currentQuestions[idx];
   const correct = q.correct || null;
   
   let resultHTML = '';
@@ -1777,365 +1774,6 @@ def load_file_preview():
     with open(chosen, "r", encoding="utf-8") as fh:
         parsed = json.load(fh)
     return jsonify({"path": chosen, "parsed": parsed})
-
-# ---------- ADMIN TEMPLATES ----------
-
-MANAGE_USERS_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Users - Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
-        th { background: rgba(255, 255, 255, 0.05); font-weight: 600; color: #4d8fd6; }
-        .btn { display: inline-block; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin: 0 4px; }
-        .btn-primary { background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 82, 165, 0.4); }
-        .btn-danger { background: linear-gradient(135deg, #C62828 0%, #E57373 100%); color: white; }
-        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(198, 40, 40, 0.4); }
-        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
-        .badge-success { background: rgba(46, 125, 50, 0.2); color: #4caf50; border: 1px solid #4caf50; }
-        .badge-danger { background: rgba(198, 40, 40, 0.2); color: #ef5350; border: 1px solid #ef5350; }
-        .badge-admin { background: rgba(212, 175, 55, 0.2); color: #d4af37; border: 1px solid #d4af37; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>👥 Manage Users</h1>
-        
-        <div class="card">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                <h2 style="color: #cbd5e1;">User List</h2>
-                <div>
-                    <a href="/add-user" class="btn btn-primary">➕ Add User</a>
-                    <a href="/menu" class="btn btn-secondary">🏠 Back to Menu</a>
-                </div>
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>User ID</th>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Expiry Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr>
-                        <td><code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">{{ user.id }}</code></td>
-                        <td>{{ user.name }}</td>
-                        <td>
-                            {% if user.role == 'admin' %}
-                                <span class="badge badge-admin">ADMIN</span>
-                            {% else %}
-                                <span class="badge" style="background: rgba(77, 143, 214, 0.2); color: #4d8fd6; border: 1px solid #4d8fd6;">USER</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ user.expiry if user.expiry else 'No Expiry' }}</td>
-                        <td>
-                            {% if user.is_valid %}
-                                <span class="badge badge-success">✓ Active</span>
-                            {% else %}
-                                <span class="badge badge-danger">✗ Expired</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="/edit-user/{{ user.id }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 14px;">✏️ Edit</a>
-                            <form action="/remove-user" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete user {{ user.id }}?');">
-                                <input type="hidden" name="user_id" value="{{ user.id }}">
-                                <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 14px;">🗑️ Remove</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-EDIT_USER_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit User - Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
-        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; }
-        input:focus, select:focus { outline: none; border-color: #4d8fd6; background: rgba(255, 255, 255, 0.08); }
-        .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin-right: 10px; }
-        .btn-primary { background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 82, 165, 0.4); }
-        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
-        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
-        .help-text { font-size: 12px; color: #94a3b8; margin-top: 4px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>✏️ Edit User</h1>
-        
-        <div class="card">
-            {% if error %}
-                <div class="error">{{ error }}</div>
-            {% endif %}
-            
-            <form method="POST">
-                <div class="form-group">
-                    <label for="name">Full Name *</label>
-                    <input type="text" id="name" name="name" value="{{ user.name }}" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="role">Role *</label>
-                    <select id="role" name="role" required>
-                        <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
-                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="expiry">Expiry Date (Optional)</label>
-                    <input type="date" id="expiry" name="expiry" value="{{ user.expiry if user.expiry else '' }}">
-                    <div class="help-text">Leave blank for no expiry. Format: YYYY-MM-DD</div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">New Password (Optional)</label>
-                    <input type="password" id="password" name="password" placeholder="Leave blank to keep current password">
-                    <div class="help-text">Only fill this if you want to change the password</div>
-                </div>
-                
-                <div style="margin-top: 30px;">
-                    <button type="submit" class="btn btn-primary">💾 Save Changes</button>
-                    <a href="/manage-users" class="btn btn-secondary">← Cancel</a>
-                </div>
-            </form>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-REMOVE_USER_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Remove User - Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #ef5350 0%, #C62828 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
-        select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; }
-        select:focus { outline: none; border-color: #C62828; background: rgba(255, 255, 255, 0.08); }
-        .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin-right: 10px; }
-        .btn-danger { background: linear-gradient(135deg, #C62828 0%, #E57373 100%); color: white; }
-        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(198, 40, 40, 0.4); }
-        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
-        .success { background: rgba(46, 125, 50, 0.2); border: 1px solid #4caf50; color: #4caf50; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
-        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
-        .warning { background: rgba(251, 191, 36, 0.2); border: 1px solid #fbbf24; color: #fbbf24; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🗑️ Remove User</h1>
-        
-        <div class="card">
-            {% if success %}
-                <div class="success">✓ {{ success }}</div>
-            {% endif %}
-            
-            {% if error %}
-                <div class="error">✗ {{ error }}</div>
-            {% endif %}
-            
-            <div class="warning">
-                ⚠️ <strong>Warning:</strong> Removing a user is permanent and cannot be undone. All their progress will be deleted.
-            </div>
-            
-            <form method="POST" onsubmit="return confirm('Are you absolutely sure you want to delete this user? This action cannot be undone.');">
-                <div class="form-group">
-                    <label for="user_id">Select User to Remove *</label>
-                    <select id="user_id" name="user_id" required>
-                        <option value="">-- Select a user --</option>
-                        {% for user in users %}
-                            <option value="{{ user.id }}">{{ user.id }} - {{ user.name }} ({{ user.role }})</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div style="margin-top: 30px;">
-                    <button type="submit" class="btn btn-danger">🗑️ Delete User</button>
-                    <a href="/manage-users" class="btn btn-secondary">← Back to Users</a>
-                </div>
-            </form>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-LOGIN_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - CFA Level 1</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-container { width: 100%; max-width: 420px; padding: 20px; }
-        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 40px; backdrop-filter: blur(10px); }
-        h1 { font-size: 28px; margin-bottom: 10px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
-        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; font-size: 14px; }
-        input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; transition: all 0.2s; }
-        input:focus { outline: none; border-color: #4d8fd6; background: rgba(255, 255, 255, 0.08); box-shadow: 0 0 0 3px rgba(77, 143, 214, 0.1); }
-        .btn-primary { width: 100%; padding: 14px; border-radius: 8px; border: none; background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 82, 165, 0.4); }
-        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; text-align: center; }
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <div class="card">
-            <h1>🎓 CFA Level 1</h1>
-            <div class="subtitle">Please login to continue</div>
-            
-            {% if error %}
-                <div class="error">{{ error }}</div>
-            {% endif %}
-            
-            <form method="POST">
-                <div class="form-group">
-                    <label for="user_id">User ID</label>
-                    <input type="text" id="user_id" name="user_id" required autofocus>
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                
-                <button type="submit" class="btn-primary">🔐 Login</button>
-            </form>
-        </div>
-    </div>
-</body>
-</html>
-"""
-
-ADD_USER_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add User - Admin Panel</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
-        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; }
-        input:focus, select:focus { outline: none; border-color: #4d8fd6; background: rgba(255, 255, 255, 0.08); }
-        .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin-right: 10px; }
-        .btn-primary { background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 82, 165, 0.4); }
-        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
-        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
-        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
-        .help-text { font-size: 12px; color: #94a3b8; margin-top: 4px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>➕ Add New User</h1>
-        
-        <div class="card">
-            {% if error %}
-                <div class="error">{{ error }}</div>
-            {% endif %}
-            
-            <form method="POST">
-                <div class="form-group">
-                    <label for="user_id">User ID *</label>
-                    <input type="text" id="user_id" name="user_id" required>
-                    <div class="help-text">Unique identifier for the user (username)</div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="name">Full Name *</label>
-                    <input type="text" id="name" name="name" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Password *</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="role">Role *</label>
-                    <select id="role" name="role" required>
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="expiry">Expiry Date (Optional)</label>
-                    <input type="date" id="expiry" name="expiry">
-                    <div class="help-text">Leave blank for no expiry</div>
-                </div>
-                
-                <div style="margin-top: 30px;">
-                    <button type="submit" class="btn btn-primary">✓ Create User</button>
-                    <a href="/manage-users" class="btn btn-secondary">← Cancel</a>
-                </div>
-            </form>
-        </div>
-    </div>
-</body>
-</html>
-"""
 
 # ---------- existing routes ----------
 
@@ -2922,6 +2560,1619 @@ def delete_attempt(attempt_id):
         return jsonify({"status": "error", "message": "Failed to delete attempt"}), 500
 
 
+# ---------- TEMPLATES ----------
+
+LOGIN_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Login - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--muted:#94a3b8;--accent:#a78bfa;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);color:#0f1724;height:100vh;display:flex;align-items:center;justify-content:center}
+.login-container{max-width:450px;width:90%;margin:20px auto;padding:40px;background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;animation: fadeInUp 0.5s ease-out;border:1px solid rgba(167,139,250,0.2)}
+.login-icon{font-size:64px;margin-bottom:20px;animation: bounce 1s ease infinite}
+.login-container h1{font-size:32px;margin:0 0 12px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.login-container p{color:var(--text-secondary);font-size:16px;margin:0 0 30px 0}
+.form-group{margin-bottom:24px;text-align:left}
+.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:15px}
+.form-group input{width:100%;padding:14px;border:1px solid rgba(167,139,250,0.3);border-radius:10px;font-size:16px;transition:all 0.3s;background:rgba(255,255,255,0.05);color:var(--text-primary)}
+.form-group input::placeholder{color:var(--text-secondary);opacity:0.7}
+.form-group input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(167,139,250,0.2);background:rgba(255,255,255,0.08)}
+.btn{padding:14px 24px;background:linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;width:100%;font-size:16px;transition:all 0.3s;margin-top:10px;box-shadow:0 4px 15px rgba(139,92,246,0.3)}
+.btn:hover{background:linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);transform:translateY(-3px);box-shadow:0 8px 25px rgba(167,139,250,0.4)}
+.error{color:var(--danger);background:rgba(244,63,94,0.15);padding:16px;border-radius:10px;margin-bottom:24px;border:1px solid rgba(244,63,94,0.3);animation: shake 0.5s ease}
+.links{margin-top:24px;font-size:15px}
+.links a{color:var(--accent);text-decoration:none;font-weight:600}
+.links a:hover{color:var(--text-primary);text-decoration:underline}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+</style>
+</head>
+<body>
+<div class="login-container">
+  <div class="login-icon">🔐</div>
+  <h1>Welcome to CFA Level 1 Quiz</h1>
+  <p>Sign in to access your CFA Level 1 Quiz Platform</p>
+  
+  {% if error %}
+  <div class="error {% if 'Another user' in error %}single-user{% endif %}">
+    <div>{{ error }}</div>
+  </div>
+  {% endif %}
+  
+  <form method="POST">
+    <div class="form-group">
+      <label for="user_id">User ID</label>
+      <input type="text" id="user_id" name="user_id" required placeholder="Enter your user ID">
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required placeholder="Enter your password">
+    </div>
+    <button type="submit" class="btn">Sign In</button>
+  </form>
+</div>
+</body>
+</html>
+"""
+
+
+
+PRACTICE_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Practice Dashboard</title>
+<style>
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
+.emoji,.sidebar-item-icon{-webkit-text-fill-color:initial;color:inherit}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
+.container{max-width:1100px;margin:24px auto;padding:0 32px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;border-bottom:1px solid var(--card-border);padding-bottom:12px}
+.header h1{font-size:24px;margin:0;font-weight:700;color:var(--text-primary)}
+.reset-link{color:var(--gold);text-decoration:none;font-size:14px;font-weight:600}
+.reset-link:hover{text-decoration:underline}
+.completion-section{margin-bottom:32px}
+.completion-label{font-size:14px;color:var(--text-secondary);margin-bottom:8px;display:block}
+.progress-bar-outer{background:rgba(0,40,80,0.6);height:24px;border-radius:12px;overflow:hidden;border:1px solid var(--card-border)}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg, var(--accent) 0%, var(--accent-light) 100%);width:0%;transition:width 0.5s ease;border-radius:12px}
+.metrics-row{display:flex;gap:1px;background:var(--card-border);border:1px solid var(--card-border);border-radius:8px;overflow:hidden;margin-bottom:40px}
+.metric-box{background:var(--card);padding:24px;flex:1;display:flex;flex-direction:column;justify-content:center}
+.metric-box.large{flex:0 0 200px;text-align:center;border-right:1px solid var(--card-border)}
+.metric-value.large{font-size:48px;font-weight:800;line-height:1;margin-bottom:8px;color:var(--accent-light)}
+.metric-label.large{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.metric-content{border-left:4px solid var(--accent);padding-left:12px}
+.metric-value{font-size:18px;font-weight:700;color:var(--text-primary);margin-bottom:4px}
+.metric-label{font-size:12px;color:var(--text-muted)}
+.tabs{display:flex;gap:32px;border-bottom:1px solid var(--card-border);margin-bottom:24px}
+.tab{padding:12px 0;font-size:16px;font-weight:600;color:var(--text-muted);cursor:pointer;position:relative;text-decoration:none}
+.tab.active{color:var(--accent-light)}
+.tab.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:3px;background:var(--accent-light)}
+.topics-table{width:100%;border-collapse:collapse}
+.topics-table th{text-align:left;font-size:12px;text-transform:uppercase;color:var(--text-muted);padding:12px;border-bottom:1px solid var(--card-border)}
+.topics-table td{padding:12px;border-bottom:1px solid var(--card-border);font-size:14px}
+.topic-header{font-weight:700;color:var(--accent-light)}
+.subtopic-item{padding-left:32px !important}
+.subtopic-link{color:var(--text-primary);text-decoration:none}
+.subtopic-link:hover{color:var(--accent-light);text-decoration:underline}
+.text-right{text-align:right}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+@media(max-width:768px){
+  .metrics-row{flex-direction:column}
+  .metric-box.large{flex:none;border-right:none;border-bottom:1px solid var(--card-border)}
+  .main-content{margin-left:0 !important}
+  .sidebar{transform:translateX(-100%)}
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CFA Level 1</h2>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/menu" class="sidebar-item">
+      <span class="sidebar-item-icon">🏠</span> Home
+    </a>
+    <a href="/all" class="sidebar-item">
+      <span class="sidebar-item-icon">📇</span> Flashcards
+    </a>
+    <a href="/practice" class="sidebar-item active">
+      <span class="sidebar-item-icon">📖</span> Practice
+    </a>
+    <a href="/mocks" class="sidebar-item">
+      <span class="sidebar-item-icon">🎯</span> Mock Exams
+    </a>
+    <a href="/my-scores" class="sidebar-item">
+      <span class="sidebar-item-icon">📊</span> My Scores
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      Logged in as:
+      <strong>{{ session.user_name }}</strong>
+    </div>
+    <a href="/logout" class="sidebar-logout">Logout</a>
+  </div>
+</div>
+<div class="main-content">
+<div class="container">
+  <div class="header">
+    <div style="display:flex;align-items:center">
+      <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</button>
+      <h1>Dashboard</h1>
+    </div>
+    <div style="display:flex;gap:15px">
+      <a href="#" class="restore-link" style="color:var(--success);text-decoration:none;font-size:14px;font-weight:600">Restore Responses</a>
+      <a href="#" class="reset-link">Reset Questions</a>
+    </div>
+  </div>
+  <div class="completion-section">
+    <span class="completion-label">Completion</span>
+    <div class="progress-bar-outer">
+      <div class="progress-bar-fill" style="width: {{ completion_percent }}%"></div>
+    </div>
+  </div>
+  <div class="metrics-row">
+    <div class="metric-box large">
+      <div class="metric-value large">{{ avg_correct }}%</div>
+      <div class="metric-label large">Correct</div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ questions_taken }} of {{ total_questions }}</div>
+        <div class="metric-label">Questions Taken</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_answer_time }}</div>
+        <div class="metric-label">Avg. Answer Time</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_correct_time }}</div>
+        <div class="metric-label">Avg. Correct Answer Time</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_incorrect_time }}</div>
+        <div class="metric-label">Avg. Incorrect Answer Time</div>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="metric-content">
+        <div class="metric-value">{{ avg_session_duration }}</div>
+        <div class="metric-label">Avg. Session Duration</div>
+      </div>
+    </div>
+  </div>
+  <div class="tabs">
+    <a href="#" class="tab active">Question Categories</a>
+    <a href="/reports" class="tab">Reports</a>
+  </div>
+  <table class="topics-table">
+    <thead>
+      <tr>
+        <th>Category Name</th>
+        <th class="text-right">Complete</th>
+        <th class="text-right">% Correct</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for topic in topics %}
+      <tr class="topic-row">
+        <td class="topic-header">{{ topic.name }}</td>
+        <td class="text-right">{{ topic.complete }} of {{ topic.total }}</td>
+        <td class="text-right">{{ topic.percent_correct if topic.percent_correct != '--' else '--' }}{% if topic.percent_correct != '--' %}%{% endif %}</td>
+      </tr>
+      {% for sub in topic.subtopics %}
+      <tr>
+        <td class="subtopic-item">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="subtopic-link">{{ sub.display_name }}</span>
+            <div style="display:flex;gap:8px">
+              {% if sub.status == 'in_progress' %}
+                <a href="/{{ sub.full_name }}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--warning);color:#000;border-radius:4px;text-decoration:none">Resume</a>
+              {% elif sub.status == 'completed' %}
+                <a href="/{{ sub.full_name }}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--success);color:#000;border-radius:4px;text-decoration:none">Review</a>
+              {% else %}
+                <a href="/{{ sub.full_name }}" class="btn" style="padding:4px 8px;font-size:11px;background:var(--accent);color:#000;border-radius:4px;text-decoration:none">Start</a>
+              {% endif %}
+            </div>
+          </div>
+        </td>
+        <td class="text-right" style="color:{% if sub.status == 'completed' %}var(--success){% elif sub.status == 'in_progress' %}var(--warning){% else %}var(--text-secondary){% endif %}">
+          {{ sub.complete }} of {{ sub.total }}
+        </td>
+        <td class="text-right">{{ sub.percent_correct if sub.percent_correct != '--' else '--' }}{% if sub.percent_correct != '--' %}%{% endif %}</td>
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+</div>
+<script>
+document.querySelector('.reset-link').addEventListener('click', function(e) {
+  e.preventDefault();
+  if (confirm('Are you sure you want to reset all practice questions? This will clear your progress and accuracy for all modules.')) {
+    fetch('/api/reset-progress', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          window.location.reload();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      });
+  }
+});
+
+document.querySelector('.restore-link').addEventListener('click', function(e) {
+  e.preventDefault();
+  const btn = this;
+  btn.textContent = 'Restoring...';
+  btn.style.pointerEvents = 'none';
+  
+  fetch('/api/restore-progress', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert(data.message);
+        window.location.reload();
+      } else {
+        alert('Error: ' + data.message);
+        btn.textContent = 'Restore Responses';
+        btn.style.pointerEvents = 'auto';
+      }
+    });
+});
+</script>
+</body>
+</html>
+"""
+
+MOCK_EXAMS_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Mock Exams Dashboard</title>
+<style>
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;display:flex}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
+.container{max-width:1100px;margin:24px auto;padding:0 24px}
+.header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;border-bottom:1px solid var(--card-border);padding-bottom:10px}
+.header-left{display:flex;align-items:center;gap:20px}
+.header-left h1{font-size:24px;margin:0;color:var(--text-primary)}
+.top-tabs{display:flex;gap:30px}
+.top-tab{color:var(--text-secondary);text-decoration:none;font-size:14px;padding-bottom:10px;border-bottom:2px solid transparent;transition:all 0.2s}
+.top-tab:hover{color:var(--accent-light)}
+.top-tab.active{color:var(--accent-light);border-bottom-color:var(--accent-light);font-weight:600}
+.dashboard-card{background:var(--card);border:1px solid var(--card-border);border-radius:4px;margin-bottom:20px;overflow:hidden}
+.card-header{padding:12px 20px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--card-border);font-size:14px;color:var(--text-secondary)}
+.card-content{padding:20px}
+.completion-label{display:block;margin-bottom:8px;font-size:14px;color:var(--text-secondary)}
+.progress-bar-outer{width:100%;height:14px;background:rgba(255,255,255,0.1);border-radius:7px;overflow:hidden;margin-bottom:20px}
+.progress-bar-fill{height:100%;background:var(--accent);transition:width 0.5s ease-out}
+.metrics-row{display:flex;align-items:center;gap:0;background:var(--card);border:1px solid var(--card-border);border-radius:4px;margin-bottom:30px;overflow:hidden}
+.metric-box{flex:1;padding:20px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--card-border)}
+.metric-box:last-child{border-right:none}
+.metric-box.large{flex:1.2;background:rgba(255,255,255,0.03);align-items:center;justify-content:center;border-right:2px solid var(--card-border)}
+.metric-value{font-size:18px;font-weight:700;color:var(--text-primary)}
+.metric-value.large{font-size:42px;color:var(--text-primary)}
+.metric-label{font-size:13px;color:var(--text-muted);text-transform:none}
+.metric-label.large{font-size:16px;color:var(--text-muted)}
+.sub-tabs{display:flex;gap:25px;margin-bottom:0;border-bottom:1px solid var(--card-border);padding-left:10px}
+.sub-tab{color:var(--text-secondary);text-decoration:none;font-size:14px;padding:12px 5px;border-bottom:2px solid transparent;transition:all 0.2s}
+.sub-tab:hover{color:var(--accent-light)}
+.sub-tab.active{color:var(--accent-light);border-bottom-color:var(--accent-light);font-weight:600}
+.mocks-table{width:100%;border-collapse:collapse;margin-top:0;background:var(--card)}
+.mocks-table th{text-align:left;padding:12px 20px;font-size:12px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--card-border);font-weight:600}
+.mocks-table td{padding:14px 20px;border-bottom:1px solid var(--card-border);font-size:14px;color:var(--text-secondary)}
+.mock-link{color:var(--accent-light);text-decoration:none}
+.mock-link:hover{text-decoration:underline}
+.status-fulfilled{color:var(--jewel-emerald);font-weight:600}
+.text-right{text-align:right}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+@media(max-width:900px){
+  .metrics-row{flex-direction:column;align-items:stretch}
+  .metric-box{border-right:none;border-bottom:1px solid var(--card-border)}
+  .metric-box.large{border-right:none;border-bottom:2px solid var(--card-border)}
+  .main-content{margin-left:0 !important}
+  .sidebar{transform:translateX(-100%)}
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CFA Level 1</h2>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/menu" class="sidebar-item">
+      <span class="sidebar-item-icon">🏠</span> Home
+    </a>
+    <a href="/all" class="sidebar-item">
+      <span class="sidebar-item-icon">📇</span> Flashcards
+    </a>
+    <a href="/practice" class="sidebar-item">
+      <span class="sidebar-item-icon">📖</span> Practice
+    </a>
+    <a href="/mocks" class="sidebar-item active">
+      <span class="sidebar-item-icon">🎯</span> Mock Exams
+    </a>
+    <a href="/my-scores" class="sidebar-item">
+      <span class="sidebar-item-icon">📊</span> My Scores
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      Logged in as:
+      <strong>{{ session.user_name }}</strong>
+    </div>
+    <a href="/logout" class="sidebar-logout">Logout</a>
+  </div>
+</div>
+<div class="main-content">
+<div class="container">
+  <div class="header-row">
+    <div class="header-left">
+      <button class="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-collapsed')">☰</button>
+      <h1>Mock Exams</h1>
+    </div>
+    <div class="top-tabs">
+      <a href="#" class="top-tab active">Dashboard</a>
+      <a href="#" class="top-tab">Confidence Levels</a>
+      <a href="#" class="top-tab">Notes</a>
+      <a href="#" class="top-tab">Bookmarks</a>
+    </div>
+  </div>
+
+  <div class="dashboard-card">
+    <div class="card-header">Dashboard</div>
+    <div class="card-content">
+      <div class="completion-section">
+        <span class="completion-label">Completion</span>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-fill" style="width: {{ completion_percent }}%"></div>
+        </div>
+      </div>
+      
+      <div class="metrics-row">
+        <div class="metric-box large">
+          <div class="metric-value large">{{ avg_correct }}%</div>
+          <div class="metric-label large">Correct</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ exams_taken }} of {{ total_exams }}</div>
+          <div class="metric-label">Mock Exams Taken</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ avg_answer_time }}</div>
+          <div class="metric-label">Avg. Answer Time</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ avg_correct_time }}</div>
+          <div class="metric-label">Avg. Correct Answer Time</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-value">{{ avg_incorrect_time }}</div>
+          <div class="metric-label">Avg. Incorrect Answer Time</div>
+        </div>
+      </div>
+
+      <div class="sub-tabs">
+        <a href="#" class="sub-tab active">Mock Exams</a>
+        <a href="#" class="sub-tab">Reports</a>
+      </div>
+      
+      <table class="mocks-table">
+        <thead>
+          <tr>
+            <th>Mock Exam Name</th>
+            <th>Mock Exam Length</th>
+            <th>Mock Exam Time</th>
+            <th>% Correct</th>
+            <th>Requirement Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mock in mocks %}
+          <tr>
+            <td><a href="/{{ mock.name }}" class="mock-link">{{ mock.display_name }}</a></td>
+            <td>{{ mock.questions }} Questions</td>
+            <td>{{ mock.time_limit }}</td>
+            <td>
+              {% if mock.completed %}
+                {{ mock.score }}% ({{ mock.correct }} / {{ mock.questions }})
+              {% endif %}
+            </td>
+            <td>
+              {% if mock.completed %}
+                <span class="status-fulfilled">Fulfilled</span>
+              {% else %}
+                Not Started
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>
+"""
+
+MENU_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CFA Level 1 - Quiz Menu</title>
+<style>
+:root{--bg:#121212;--card:#0A2540;--card-border:#1a3a5c;--muted:#94a3b8;--accent:#0052A5;--accent-dark:#003d7a;--accent-light:#4d8fd6;--success:#2E7D32;--danger:#C62828;--warning:#fbbf24;--text-primary:#FAFAFA;--text-secondary:#cbd5e1;--text-muted:#94a3b8;--gold:#d4af37;--jewel-emerald:#2E7D32;--jewel-sapphire:#0052A5;--jewel-amethyst:#6c5ce7;--jewel-ruby:#C62828;--glass-bg:rgba(255,255,255,0.05);--glass-border:rgba(255,255,255,0.1);--sidebar-width:210px}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,Helvetica,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #0A2540 100%);color:var(--text-primary);min-height:100vh;display:flex}
+.emoji,.sidebar-item-icon{-webkit-text-fill-color:initial;color:inherit}
+.sidebar{width:var(--sidebar-width);background:var(--card);border-right:1px solid var(--card-border);padding:20px 0;display:flex;flex-direction:column;position:fixed;height:100vh;left:0;top:0;z-index:100;transition:transform 0.3s ease}
+.sidebar-logo{padding:0 20px 20px 20px;border-bottom:1px solid var(--card-border);margin-bottom:12px}
+.sidebar-logo h2{margin:0;font-size:16px;font-weight:800;background:linear-gradient(135deg, var(--accent-light) 0%, var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:4px;padding:0 12px}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:13px;font-weight:500;transition:all 0.2s}
+.sidebar-item:hover{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.sidebar-item.active{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);color:#fff;font-weight:600}
+.sidebar-item-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--card-border);margin-top:auto}
+.sidebar-user{font-size:11px;color:var(--text-muted)}
+.sidebar-user strong{color:var(--text-primary);display:block;font-size:13px;margin-top:4px}
+.sidebar-logout{display:block;margin-top:12px;padding:8px 12px;background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;text-decoration:none;border-radius:6px;font-size:12px;font-weight:600;text-align:center}
+.sidebar-logout:hover{opacity:0.9}
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;transition:margin-left 0.3s ease}
+.container{max-width:1000px;margin:24px auto;padding:0 24px}
+.header{position:relative;margin-bottom:32px;animation:slideDown 0.4s ease;text-align:left}
+.user-actions{display:flex;align-items:center;justify-content:center;gap:15px;margin:20px 0;flex-wrap:wrap}
+.user-info{background:var(--glass-bg);padding:10px 18px;border-radius:50px;font-size:14px;box-shadow:0 4px 15px rgba(167,139,250,0.15);transition:all 0.3s ease;border:1px solid var(--glass-border);color:var(--text-secondary)}
+.btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.3s;border:1px solid var(--glass-border);cursor:pointer}
+.btn-primary{background:linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);color:#fff;border:none;box-shadow:0 4px 15px rgba(139,92,246,0.3)}
+.btn-primary:hover{background:linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);transform:translateY(-2px);box-shadow:0 8px 25px rgba(167,139,250,0.4)}
+.btn-secondary{background:var(--glass-bg);color:var(--text-secondary);border:1px solid var(--glass-border)}
+.btn-secondary:hover{background:rgba(167,139,250,0.15);color:var(--accent-light);border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 15px rgba(167,139,250,0.2)}
+.btn-admin{background:linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);color:#fff;border:none;box-shadow:0 4px 15px rgba(139,92,246,0.3)}
+.btn-logout{background:linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);color:#fff;border:none;box-shadow:0 4px 15px rgba(244,63,94,0.3)}
+.search-box{max-width:500px;margin:30px auto 24px;position:relative;transition:all 0.3s}
+.search-box input{width:100%;padding:14px 16px 14px 44px;border:1px solid var(--card-border);border-radius:12px;font-size:16px;transition:all 0.3s;box-shadow:0 4px 15px rgba(167,139,250,0.1);background:var(--card);color:var(--text-primary)}
+.search-box::before{content:'🔍';position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:18px}
+.section{margin-bottom:40px}
+.section-title{font-size:22px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--card-border);color:var(--text-primary)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+.card{background:var(--card);padding:20px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);transition:all 0.3s;border:1px solid var(--card-border);position:relative;overflow:hidden}
+.card:hover{box-shadow:0 12px 40px rgba(167,139,250,0.25);border-color:var(--accent);transform:translateY(-4px)}
+.card-title{font-weight:700;font-size:16px;margin-bottom:12px;color:var(--text-primary);line-height:1.4}
+.card-meta{display:flex;gap:16px;font-size:13px;color:var(--text-muted);margin-bottom:16px;flex-wrap:wrap}
+.card-actions{display:flex;gap:10px}
+.completed-badge{background:linear-gradient(135deg, var(--jewel-emerald) 0%, var(--jewel-sapphire) 100%);color:white;padding:4px 8px;border-radius:4px;font-size:12px;margin-left:10px;font-weight:600}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.active{display:flex}
+.modal-content{background:var(--card);border-radius:16px;padding:30px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:1px solid rgba(167,139,250,0.3)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--card-border)}
+.modal-title{font-size:24px;font-weight:800;margin:0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-secondary)}
+.session-info{background:rgba(167,139,250,0.08);border-radius:12px;padding:16px;margin-bottom:20px;border-left:4px solid var(--accent)}
+.session-info-row{display:flex;justify-content:space-between;margin-bottom:12px;font-size:14px}
+.session-label{color:var(--text-secondary);font-weight:600}
+.session-value{color:var(--text-primary);word-break:break-all}
+.session-history{margin-top:24px}
+.session-history-title{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--accent)}
+.session-list{display:flex;flex-direction:column;gap:12px}
+.session-item{background:rgba(167,139,250,0.05);border:1px solid rgba(167,139,250,0.2);border-radius:8px;padding:12px}
+.session-item.current{border-color:var(--success);background:rgba(52,211,153,0.1)}
+.session-item-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.session-item-time{font-size:13px;font-weight:600;color:var(--accent)}
+.session-item-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;background:var(--success);color:white}
+.session-item-details{font-size:12px;color:var(--text-muted);display:grid;gap:6px}
+.session-item-detail{display:flex;align-items:flex-start;gap:6px}
+.session-item-detail-label{font-weight:600;min-width:50px;color:var(--text-secondary)}
+.session-item-detail-value{word-break:break-all;flex:1}
+.sidebar-toggle{background:none;border:none;font-size:24px;color:var(--text-primary);cursor:pointer;padding:8px;margin-right:15px;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:background 0.2s}
+.sidebar-toggle:hover{background:rgba(255,255,255,0.1)}
+body.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+body.sidebar-collapsed .main-content{margin-left:0}
+/* CFA Dashboard Styles */
+.dashboard-top{display:flex;gap:20px;align-items:stretch;margin-bottom:30px;flex-wrap:wrap}
+.countdown-box{background:linear-gradient(135deg, #0A2540 0%, #0052A5 100%);padding:20px;border-radius:12px;min-width:160px;text-align:center;color:#fff;box-shadow:0 4px 15px rgba(0,82,165,0.3);position:relative}
+.countdown-number{font-size:56px;font-weight:800;line-height:1}
+.countdown-label{font-size:12px;text-transform:uppercase;margin-bottom:4px;opacity:0.9}
+.countdown-date{font-size:11px;margin-top:6px;opacity:0.8;display:flex;align-items:center;justify-content:center;gap:4px}
+.progress-card{flex:1;min-width:250px;background:var(--card);padding:24px;border-radius:12px;border:1px solid var(--card-border);display:flex;flex-direction:column;justify-content:center;box-shadow: 0 4px 12px rgba(0,0,0,0.2)}
+.progress-label{font-size:14px;color:var(--text-secondary);font-weight:600;margin-bottom:12px;display:flex;justify-content:space-between}
+.progress-bar-outer{background:rgba(255,255,255,0.05);height:12px;border-radius:6px;overflow:hidden;border:none}
+.progress-bar-fill{height:100%;border-radius:6px;transition:width 0.5s ease}
+.progress-bar-fill.orange{background:linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)}
+.score-circles{display:flex;justify-content:center;gap:40px;padding:40px;background:var(--card);border-radius:12px;margin-bottom:30px;border:1px solid var(--card-border);box-shadow: 0 4px 20px rgba(0,0,0,0.3)}
+.score-circle{text-align:center}
+.score-ring{width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;margin:0 auto 12px;position:relative}
+.score-ring svg{transform:rotate(-90deg);width:100%;height:100%}
+.score-ring circle{fill:none;stroke-width:10;stroke-linecap:round}
+.score-ring .bg{stroke:rgba(255,255,255,0.05)}
+.score-ring .progress{transition:stroke-dashoffset 1s ease-out;stroke-dasharray: 283;stroke-dashoffset: 283}
+.score-value{font-size:32px;font-weight:800;color:var(--text-primary);position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);text-align:center;line-height:1}
+.score-suffix{font-size:14px;color:var(--text-muted);display:block;font-weight:600;margin-top:5px}
+.score-label{font-size:16px;color:var(--text-secondary);font-weight:700;margin-bottom:25px}
+.score-ring.blue .progress{stroke:var(--accent)}
+.score-ring.green .progress{stroke:var(--success)}
+.score-ring.purple .progress{stroke:var(--jewel-amethyst)}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:30px}
+.task-section{background:rgba(0,82,165,0.1);border-radius:12px;padding:24px;display:flex;align-items:center;gap:20px;border:1px solid rgba(0,82,165,0.2)}
+.task-section.purple{background:rgba(108,92,231,0.1);border-color:rgba(108,92,231,0.2)}
+.task-icon{font-size:24px}
+.task-info{flex:1}
+.task-title{font-weight:700;color:var(--text-primary);font-size:18px;margin-bottom:4px}
+.task-meta{font-size:14px;color:var(--text-muted)}
+.task-btn{background:var(--accent);color:#fff;border:none;padding:12px 24px;border-radius:6px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.2s;text-decoration:none}
+.task-btn.purple{background:var(--jewel-amethyst)}
+.task-btn:hover{opacity:0.9;transform:translateY(-2px)}
+/* Strengths & Weaknesses Section */
+.strengths-section{margin-top:30px;background:var(--card);border:1px solid var(--card-border);border-radius:8px;padding:24px}
+.strengths-header{font-size:20px;font-weight:700;margin-bottom:8px;color:var(--text-primary)}
+.strengths-desc{color:var(--text-muted);font-size:13px;margin-bottom:20px}
+.strength-row{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--card-border)}
+.strength-row:last-child{border-bottom:none}
+.topic-name{flex:0 0 280px;font-weight:600;color:var(--text-primary);font-size:14px}
+.progress-track{flex:1;height:10px;background:rgba(255,255,255,0.05);border-radius:0;overflow:hidden;margin:0 20px}
+.progress-fill-bar{height:100%;transition:width 0.5s}
+.progress-fill-bar.green{background:#2E7D32}
+.progress-fill-bar.yellow{background:#F9A825}
+.progress-fill-bar.red{background:#C62828}
+.progress-fill-bar.grey{background:#555}
+.pct-value{flex:0 0 60px;text-align:right;font-weight:700;font-size:14px;color:var(--text-primary)}
+@media(max-width:768px){
+  .main-content{margin-left:0 !important}
+  .sidebar{transform:translateX(-100%)}
+  .score-circles{flex-direction:column;gap:30px}
+  .action-grid{grid-template-columns:1fr}
+  .topic-name{flex:0 0 150px;font-size:12px}
+}
+@keyframes slideDown {
+  from {opacity: 0; transform: translateY(-20px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>CFA Level 1</h2>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/menu" class="sidebar-item active">
+      <span class="sidebar-item-icon">🏠</span> Home
+    </a>
+    <a href="/all" class="sidebar-item">
+      <span class="sidebar-item-icon">📇</span> Flashcards
+    </a>
+    <a href="/practice" class="sidebar-item">
+      <span class="sidebar-item-icon">📖</span> Practice
+    </a>
+    <a href="/mocks" class="sidebar-item">
+      <span class="sidebar-item-icon">🎯</span> Mock Exams
+    </a>
+    <a href="/my-scores" class="sidebar-item">
+      <span class="sidebar-item-icon">📊</span> My Scores
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      Logged in as:
+      <strong>{{ session.user_name }}</strong>
+    </div>
+    {% if session.user_role == 'admin' %}
+    <a href="/manage-users" class="sidebar-item" style="padding: 6px 14px; margin-top: 5px; background: rgba(167,139,250,0.1)">
+      <span class="sidebar-item-icon">👥</span> Admin
+    </a>
+    {% endif %}
+    <a href="/logout" class="sidebar-logout">Logout</a>
+  </div>
+</div>
+
+<div class="main-content">
+<div class="container">
+  <div class="header">
+    <div style="display: flex; align-items: center; justify-content: space-between">
+      <div style="display: flex; align-items: center">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        <h2 style="font-size: 26px; font-weight: 700; color: var(--text-primary); margin: 0">Welcome to CFA Program Level I</h2>
+      </div>
+      <div class="user-actions">
+        <span class="user-info">👤 {{ session.user_name }}</span>
+        <button id="restoreBtn" class="btn btn-secondary" onclick="restoreProgress(this)" style="color:var(--success)">🔄 Restore</button>
+        <a href="/edit-profile" class="btn btn-secondary">👤 Profile</a>
+        <button id="sessionDetailsBtn" class="btn btn-secondary" onclick="openSessionModal()">🔐 Sessions</button>
+        <a href="/logout" class="btn btn-logout">🔓 Logout</a>
+      </div>
+    </div>
+  </div>
+
+  {% set modules = [] %}
+  {% set mocks = [] %}
+  {% for file in files %}
+    {% if file.is_module %}
+      {% set _ = modules.append(file) %}
+    {% elif file.is_mock %}
+      {% set _ = mocks.append(file) %}
+    {% endif %}
+  {% endfor %}
+
+  <!-- CFA-Style Dashboard -->
+  <div class="dashboard-area">
+    <!-- TOP METRICS ROW -->
+    <div class="dashboard-top">
+      <!-- Days Until -->
+      <div class="countdown-box" onclick="document.getElementById('examDatePicker').showPicker ? document.getElementById('examDatePicker').showPicker() : document.getElementById('examDatePicker').click()" style="cursor:pointer" title="Click to change exam date">
+        <div class="countdown-label">Days Until</div>
+        <div class="countdown-number" id="daysUntil">--</div>
+        <div class="countdown-date">📅 <span id="examDate">Exam Date</span></div>
+        <input type="date" id="examDatePicker" value="{{ exam_date }}" style="position:absolute;opacity:0;pointer-events:none" onchange="updateExamDate(this.value)">
+      </div>
+
+      <!-- Today's Study Progress -->
+      <div class="progress-card">
+        <div class="progress-label">
+          <span>Today's Study Progress</span>
+          <span style="color: var(--text-primary)">{{ stats.questions_attempted_today|default(0) }}/{{ daily_target }} 📚</span>
+        </div>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-fill orange" style="width: {{ [stats.questions_attempted_today|default(0) / daily_target * 100, 100]|min if daily_target > 0 else 0 }}%"></div>
+        </div>
+      </div>
+
+      <!-- Study Progress (Overall) -->
+      <div class="progress-card">
+        <div class="progress-label">
+          <span>Study Progress</span>
+          <span style="color: var(--text-primary)">{{ study_progress_pct }}% complete</span>
+        </div>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-fill orange" style="width: {{ study_progress_pct }}%"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- PERFORMANCE METRICS (CIRCULAR RINGS) -->
+    <div class="score-circles">
+      <div class="score-circle">
+        <div class="score-label">Modules Completed</div>
+        <div class="score-ring blue">
+          <svg viewBox="0 0 100 100">
+            <circle class="bg" cx="50" cy="50" r="45"></circle>
+            <circle class="progress" cx="50" cy="50" r="45" style="stroke-dasharray: 283; stroke-dashoffset: {{ 283 - (stats.modules_completed|default(0) / total_modules|default(93) * 283) if total_modules|default(93) > 0 else 283 }}"></circle>
+          </svg>
+          <div class="score-value">{{ stats.modules_completed|default(0) }}<span class="score-suffix">/ {{ total_modules|default(93) }} Modules</span></div>
+        </div>
+      </div>
+      
+      <div class="score-circle">
+        <div class="score-label">Avg. Score on Practice</div>
+        <div class="score-ring green">
+          <svg viewBox="0 0 100 100">
+            <circle class="bg" cx="50" cy="50" r="45"></circle>
+            <circle class="progress" cx="50" cy="50" r="45" style="stroke-dasharray: 283; stroke-dashoffset: {{ 283 - (stats.avg_module_score|default(0) / 100 * 283) }}"></circle>
+          </svg>
+          <div class="score-value">{{ stats.avg_module_score|default(0)|int }}%<span class="score-suffix">% Correct</span></div>
+        </div>
+      </div>
+      
+      <div class="score-circle">
+        <div class="score-label">Avg. Score on Mock Exams</div>
+        <div class="score-ring purple">
+          <svg viewBox="0 0 100 100">
+            <circle class="bg" cx="50" cy="50" r="45"></circle>
+            <circle class="progress" cx="50" cy="50" r="45" style="stroke-dasharray: 283; stroke-dashoffset: {{ 283 - (stats.avg_mock_score|default(0) / 100 * 283) }}"></circle>
+          </svg>
+          <div class="score-value">{{ stats.avg_mock_score|default(0)|int }}%<span class="score-suffix">% Correct</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTION SECTION -->
+    <div class="action-grid">
+      <div class="task-section">
+        <div class="task-icon">📖</div>
+        <div class="task-info">
+          <div class="task-title">Practice: Start a Quiz</div>
+          <div class="task-meta">{{ modules|length }} Modules Available</div>
+        </div>
+        <a href="/practice" class="task-btn">Start Practice →</a>
+      </div>
+      <div class="task-section purple">
+        <div class="task-icon">🎯</div>
+        <div class="task-info">
+          <div class="task-title">Mock Exams Available</div>
+          <div class="task-meta">{{ mocks|length }} Mock Exams Available</div>
+        </div>
+        <a href="/mocks" class="task-btn purple">Start Mock →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="search-box">
+    <input type="text" id="searchInput" onkeyup="filterModules()" placeholder="Search modules or exams..." />
+  </div>
+
+  <!-- STRENGTHS & WEAKNESSES SECTION -->
+  <div class="strengths-section">
+    <div class="strengths-header">Strengths & Weaknesses</div>
+    <p class="strengths-desc">Your performance by CFA curriculum topic</p>
+    
+    {% for topic in topic_strengths %}
+    <div class="strength-row">
+      <div class="topic-name">{{ topic.name }}</div>
+      <div class="progress-track">
+        {% if topic.percent is not none %}
+        <div class="progress-fill-bar {% if topic.percent >= 70 %}green{% elif topic.percent >= 50 %}yellow{% else %}red{% endif %}" style="width: {{ topic.percent }}%"></div>
+        {% else %}
+        <div class="progress-fill-bar grey" style="width: 0%"></div>
+        {% endif %}
+      </div>
+      <div class="pct-value">{% if topic.percent is not none %}{{ topic.percent }}%{% else %}N/A{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if not files %}
+  <div class="empty">
+    <div class="empty-icon">📂</div>
+    <p>No quiz files found in the data folder.</p>
+  </div>
+  {% endif %}
+</div> <!-- end container -->
+</div> <!-- end main-content -->
+
+<div id="sessionModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 class="modal-title">🔐 Session Details</h2>
+      <button class="modal-close" onclick="closeSessionModal()">&times;</button>
+    </div>
+    <div class="session-info">
+      <div class="session-info-row">
+        <span class="session-label">User ID:</span>
+        <span class="session-value" id="userIdDisplay">Loading...</span>
+      </div>
+      <div class="session-info-row">
+        <span class="session-label">Full Name:</span>
+        <span class="session-value" id="userNameDisplay">Loading...</span>
+      </div>
+    </div>
+    <div class="session-history">
+      <h3 class="session-history-title">📝 Login History</h3>
+      <div class="session-list" id="sessionList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleSidebar() { document.body.classList.toggle('sidebar-collapsed'); }
+function openSessionModal() { document.getElementById('sessionModal').classList.add('active'); loadSessionDetails(); }
+function closeSessionModal() { document.getElementById('sessionModal').classList.remove('active'); }
+
+function filterModules() {
+  const input = document.getElementById('searchInput');
+  const filter = input.value.toLowerCase();
+  const cards = document.getElementsByClassName('card');
+  for (let card of cards) {
+    const name = card.getAttribute('data-name');
+    card.style.display = name.includes(filter) ? "" : "none";
+  }
+}
+
+// Exam Countdown
+document.addEventListener('DOMContentLoaded', function() {
+  const examDateStr = "{{ exam_date }}";
+  if (examDateStr) {
+    const examDate = new Date(examDateStr);
+    const today = new Date();
+    const diffTime = examDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    document.getElementById('daysUntil').textContent = diffDays > 0 ? diffDays : 0;
+    const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+    document.getElementById('examDate').textContent = examDate.toLocaleDateString('en-GB', options).split('/').join('-');
+  }
+});
+
+function restoreProgress(btn) {
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '🔄 Restoring...';
+  btn.style.pointerEvents = 'none';
+  
+  fetch('/api/restore-progress', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'success') {
+        alert(data.message);
+        window.location.reload();
+      } else {
+        alert('Error: ' + data.message);
+        btn.innerHTML = originalText;
+        btn.style.pointerEvents = 'auto';
+      }
+    })
+    .catch(err => {
+      alert('Network error: ' + err);
+      btn.innerHTML = originalText;
+      btn.style.pointerEvents = 'auto';
+    });
+}
+
+function updateExamDate(newDate) {
+  fetch('/api/update-exam-date', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({exam_date: newDate})
+  }).then(() => window.location.reload());
+}
+
+async function loadSessionDetails() {
+  const res = await fetch('/api/session-details');
+  const data = await res.json();
+  document.getElementById('userIdDisplay').textContent = data.user_id;
+  document.getElementById('userNameDisplay').textContent = data.user_name;
+  const list = document.getElementById('sessionList');
+  list.innerHTML = data.sessions.map(s => `
+    <div class="session-item ${s.is_current ? 'current' : ''}">
+      <div class="session-item-header">
+        <span class="session-item-time">📅 ${new Date(s.timestamp).toLocaleString()}</span>
+        ${s.is_current ? '<span class="session-item-badge">CURRENT</span>' : ''}
+      </div>
+      <div class="session-item-details">IP: ${s.ip}</div>
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>
+"""
+
+HISTORY_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Quiz History</title>
+<style>
+body{font-family:sans-serif;background:#121212;color:#fff;padding:20px}
+.card{background:#1e293b;padding:15px;margin-bottom:10px;border-radius:8px}
+.btn{display:inline-block;padding:8px 16px;background:#a78bfa;color:#000;text-decoration:none;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>Quiz History</h1>
+<a href="/menu" style="color:#a78bfa">Back to Menu</a>
+{% for attempt in history %}<div class="card"><h3>{{ attempt.quiz_name }}</h3><p>Score: {{ attempt.score_percent }}% | Date: {{ attempt.timestamp }}</p><a href="/view-attempt/{{ attempt.id }}" class="btn">View Details</a></div>{% endfor %}
+</body>
+</html>
+"""
+
+RECENTLY_VIEWED_TEMPLATE = """
+<!doctype html>
+<html><head><title>Recently Viewed</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Recently Viewed</h1>
+{% for item in recently_viewed %}<div><h3>{{ item.name }}</h3><a href="/{{ item.name }}" style="color:#a78bfa">Take Again</a></div>{% endfor %}
+</body>
+</html>
+"""
+
+ADD_USER_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Add User - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center}
+.form-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid rgba(167,139,250,0.2);width:90%;max-width:500px}
+.header{display:flex;align-items:center;gap:16px;margin-bottom:32px}
+.header h1{font-size:28px;margin:0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800}
+.form-group{margin-bottom:24px}
+.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:14px}
+.form-group input, .form-group select{width:100%;padding:12px;border:1px solid rgba(167,139,250,0.3);border-radius:8px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:15px;transition:all 0.3s}
+.form-group input:focus{border-color:var(--accent);outline:none;background:rgba(255,255,255,0.08)}
+.btn{padding:12px 24px;background:linear-gradient(135deg, var(--accent-dark) 0%, var(--accent) 100%);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;width:100%;font-size:16px;transition:all 0.3s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(167,139,250,0.4)}
+.error{color:var(--danger);background:rgba(244,63,94,0.15);padding:12px;border-radius:8px;margin-bottom:20px;font-size:14px;border:1px solid rgba(244,63,94,0.3)}
+.success{color:var(--success);background:rgba(52,211,153,0.15);padding:12px;border-radius:8px;margin-bottom:20px;font-size:14px;border:1px solid rgba(52,211,153,0.3)}
+</style>
+</head>
+<body>
+<div class="form-card">
+  <div class="header"><h1>➕ Add New User</h1></div>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="success">{{ success }}</div>{% endif %}
+  <form method="POST">
+    <div class="form-group"><label>Full Name</label><input type="text" name="name" required placeholder="Enter full name"></div>
+    <div class="form-group"><label>User ID</label><input type="text" name="user_id" required placeholder="Enter user ID"></div>
+    <div class="form-group"><label>Password</label><input type="password" name="password" required placeholder="Enter password"></div>
+    <div class="form-group"><label>Role</label><select name="role"><option value="user">User</option><option value="admin">Administrator</option></select></div>
+    <div class="form-group"><label>Expiry Date (Optional)</label><input type="date" name="expiry"></div>
+    <button type="submit" class="btn">Add User</button>
+  </form>
+  <div style="margin-top:20px;text-align:center"><a href="/manage-users" style="color:var(--accent);text-decoration:none;font-weight:600">← Back to Manage Users</a></div>
+</div>
+</body>
+</html>
+"""
+
+REMOVE_USER_TEMPLATE = """
+<!doctype html>
+<html><head><title>Remove User</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Remove User</h1>
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+<form method="POST">
+<input type="text" name="user_id" placeholder="User ID" required><br>
+<button type="submit">Remove User</button>
+</form>
+</body>
+</html>
+"""
+
+MANAGE_USERS_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Manage Users - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--accent-light:#c4b5fd;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh}
+.container{max-width:1100px;margin:28px auto;padding:0 18px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px;flex-wrap:wrap;gap:20px}
+.header h1{font-size:32px;margin:0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:800}
+.btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.3s;background:var(--accent);color:#000}
+.user-card{background:var(--card);padding:20px;border-radius:12px;border:1px solid var(--card-border);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.user-name{font-weight:700;font-size:18px;color:var(--text-primary)}
+.user-meta{color:var(--text-secondary);font-size:14px;margin-top:4px}
+.tag{padding:4px 8px;border-radius:4px;font-size:12px;font-weight:700;margin-left:10px}
+.tag-admin{background:var(--accent);color:#000}
+.tag-user{background:var(--card-border);color:var(--text-secondary)}
+.status-valid{color:var(--success)}
+.status-expired{color:var(--danger)}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>👥 Manage Users</h1>
+    <div style="display:flex;gap:12px">
+      <a href="/add-user" class="btn">➕ Add User</a>
+      <a href="/menu" class="btn" style="background:var(--card-border);color:var(--text-primary)">🏠 Menu</a>
+    </div>
+  </div>
+  {% if users %}
+  {% for user in users %}
+  <div class="user-card">
+    <div>
+      <div class="user-name">
+        {{ user.name }}
+        {% if user.role == 'admin' %}<span class="tag tag-admin">ADMIN</span>{% else %}<span class="tag tag-user">USER</span>{% endif %}
+      </div>
+      <div class="user-meta">
+        <strong>ID:</strong> {{ user.id }} | 
+        <strong>Status:</strong> <span class="{% if user.is_valid %}status-valid{% else %}status-expired{% endif %}">{% if user.is_valid %}Valid{% else %}Expired{% endif %}</span>
+        {% if user.expiry %} | <strong>Expires:</strong> {{ user.expiry }}{% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="/edit-user/{{ user.id }}" class="btn" style="background:var(--card-border);color:var(--accent)">✏️ Edit</a>
+      <form action="/remove-user" method="POST" style="display:inline;margin:0" onsubmit="return confirm('Are you sure you want to delete user {{ user.id }}?');">
+        <input type="hidden" name="user_id" value="{{ user.id }}">
+        <button type="submit" class="btn" style="background:var(--danger);color:#fff;border:none;cursor:pointer">🗑️ Remove</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p style="text-align:center;padding:40px;color:var(--text-muted)">No users found.</p>
+  {% endif %}
+</div>
+</body>
+</html>
+"""
+
+EDIT_USER_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Edit User - CFA Level 1 Quiz</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--muted:#94a3b8;--accent:#a78bfa;--accent-dark:#8b5cf6;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg, var(--bg) 0%, #1e293b 100%);color:var(--text-primary);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.form-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);padding:40px;border:1px solid rgba(167,139,250,0.2);width:90%;max-width:500px}
+.form-card h1{margin:0 0 8px 0;font-size:28px;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{color:var(--muted);margin-bottom:30px;font-size:14px}
+.form-group{margin-bottom:20px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px}
+.form-group input,.form-group select{width:100%;padding:12px 16px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:15px;box-sizing:border-box}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(167,139,250,0.15)}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;margin-top:10px}
+.btn-primary{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);color:# 000}
+.btn-secondary{background:var(--card-border);color:var(--text-secondary)}
+.alert{padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:14px}
+.alert-error{background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.3)}
+</style>
+</head>
+<body>
+<div class="form-card">
+  <h1>✏️ Edit User</h1>
+  <p class="subtitle">Editing user: <strong>{{ user.id }}</strong></p>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <form method="POST">
+    <div class="form-group">
+      <label for="name">Full Name *</label>
+      <input type="text" id="name" name="name" value="{{ user.name }}" required>
+    </div>
+    <div class="form-group">
+      <label for="role">Role *</label>
+      <select id="role" name="role" required>
+        <option value="user" {% if user.role=='user' %}selected{% endif %}>User</option>
+        <option value="admin" {% if user.role=='admin' %}selected{% endif %}>Admin</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="expiry">Expiry Date (Optional)</label>
+      <input type="date" id="expiry" name="expiry" value="{{ user.expiry if user.expiry else '' }}">
+    </div>
+    <div class="form-group">
+      <label for="password">New Password (Optional)</label>
+      <input type="password" id="password" name="password" placeholder="Leave blank to keep current password">
+    </div>
+    <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+    <a href="/manage-users" class="btn btn-secondary" style="text-decoration:none;display:block;text-align:center">← Cancel</a>
+  </form>
+</div>
+</body>
+</html>
+"""
+
+USER_PROFILE_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Edit Profile - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--accent-dark:#8b5cf6;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-gradient(135deg, #0f1419 0%, #1a202c 100%);color:var(--text-primary);min-height:100vh}
+.container{max-width:600px;margin:40px auto;padding:0 20px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:24px;font-weight:600;font-size:14px}
+.nav-back:hover{text-decoration:underline}
+.card{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:32px;box-shadow:0 4px 24px rgba(0,0,0,0.3)}
+.card-header{margin-bottom:28px;text-align:center}
+.card-header h1{font-size:28px;font-weight:700;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.card-header p{color:var(--text-muted);margin:0;font-size:14px}
+.avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg, var(--accent) 0%, #d4af37 100%);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;font-weight:700;color:#000}
+.form-group{margin-bottom:20px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px}
+.form-group input{width:100%;padding:14px 16px;border:1px solid var(--card-border);border-radius:10px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:15px;transition:all 0.2s;box-sizing:border-box}
+.form-group input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(167,139,250,0.15)}
+.form-group input::placeholder{color:var(--text-muted)}
+.form-hint{font-size:12px;color:var(--text-muted);margin-top:6px}
+.btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.btn-primary{background:linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);color:#000}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(167,139,250,0.4)}
+.alert{padding:14px 16px;border-radius:10px;margin-bottom:20px;font-size:14px;font-weight:500}
+.alert-success{background:rgba(52,211,153,0.15);color:var(--success);border:1px solid rgba(52,211,153,0.3)}
+.alert-error{background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.3)}
+.info-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--card-border);font-size:14px}
+.info-row:last-child{border-bottom:none}
+.info-label{color:var(--text-muted)}
+.info-value{color:var(--text-primary);font-weight:600}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Dashboard</a>
+  
+  <div class="card">
+    <div class="card-header">
+      <div class="avatar">{{ user.name[:1]|upper if user.name else 'U' }}</div>
+      <h1>Edit Profile</h1>
+      <p>Update your account information</p>
+    </div>
+    
+    {% if success %}
+    <div class="alert alert-success">✓ {{ success }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">⚠ {{ error }}</div>
+    {% endif %}
+    
+    <form method="POST">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" value="{{ user.name }}" required placeholder="Enter your full name"/>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">New Password</label>
+        <input type="password" id="password" name="password" placeholder="Leave blank to keep current password"/>
+        <div class="form-hint">Only fill this if you want to change your password</div>
+      </div>
+      
+      <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+    </form>
+    
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--card-border)">
+      <div class="info-row">
+        <span class="info-label">User ID</span>
+        <span class="info-value">{{ user.user_id|default('N/A') }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Account Status</span>
+        <span class="info-value" style="color:var(--success)">{{ 'Active' if user.is_valid else 'Expired' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value">{{ user.role|default('user')|capitalize }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+"""
+
+
+MY_SCORES_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Scores - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--accent-dark:#8b5cf6;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:1100px;margin:28px auto;padding:0 18px}
+.header{margin-bottom:30px}
+.header h1{font-size:28px;font-weight:700;margin:0 0 8px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header p{color:var(--text-muted);margin:0}
+.stats-row{display:flex;gap:20px;margin-bottom:30px;flex-wrap:wrap}
+.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;flex:1;min-width:150px}
+.stat-value{font-size:32px;font-weight:700;color:var(--text-primary)}
+.stat-label{font-size:13px;color:var(--text-muted);margin-top:4px}
+.attempts-table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden}
+.attempts-table th{text-align:left;padding:14px 20px;background:rgba(255,255,255,0.03);font-size:12px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--card-border)}
+.attempts-table td{padding:14px 20px;border-bottom:1px solid var(--card-border);font-size:14px}
+.attempts-table tr:last-child td{border-bottom:none}
+.score-badge{padding:4px 12px;border-radius:20px;font-weight:600;font-size:13px}
+.score-high{background:rgba(52,211,153,0.2);color:var(--success)}
+.score-mid{background:rgba(251,191,36,0.2);color:var(--warning)}
+.score-low{background:rgba(248,113,113,0.2);color:var(--danger)}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;display:inline-block;transition:all 0.2s}
+.btn-primary{background:var(--accent);color:#000}
+.btn-secondary{background:rgba(255,255,255,0.05);color:var(--text-secondary);border:1px solid var(--card-border)}
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Menu</a>
+  
+  <div class="header">
+    <h1>📊 My Scores</h1>
+    <p>Your quiz attempts and performance history</p>
+  </div>
+  
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.total_attempts|default(0) }}</div>
+      <div class="stat-label">Total Attempts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.avg_module_score|default(0)|int }}%</div>
+      <div class="stat-label">Avg. Practice Score</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">{{ stats.avg_mock_score|default(0)|int }}%</div>
+      <div class="stat-label">Avg. Mock Score</div>
+    </div>
+  </div>
+  
+  {% if attempts %}
+  <table class="attempts-table">
+    <thead>
+      <tr>
+        <th>Quiz Name</th>
+        <th>Type</th>
+        <th>Date</th>
+        <th>Score</th>
+        <th>Time Spent</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for attempt in attempts %}
+      <tr>
+        <td>{{ attempt.quiz_name }}</td>
+        <td>{{ 'Mock' if attempt.quiz_type == 'mock' else 'Practice' }}</td>
+        <td>{{ attempt.timestamp[:10] if attempt.timestamp else 'N/A' }}</td>
+        <td>
+          <span class="score-badge {% if attempt.score_percent >= 70 %}score-high{% elif attempt.score_percent >= 50 %}score-mid{% else %}score-low{% endif %}">
+            {{ attempt.score_percent }}%
+          </span>
+        </td>
+        <td>{{ (attempt.time_spent_seconds // 60)|int }}m {{ attempt.time_spent_seconds % 60 }}s</td>
+        <td>
+          <a href="/review-attempt/{{ attempt.attempt_id }}" class="btn btn-primary">Review</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <h3>No attempts yet</h3>
+    <p>Complete a quiz to see your scores here.</p>
+    <a href="/practice" class="btn btn-primary" style="margin-top:16px">Start Practice</a>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>
+"""
+
+ATTEMPT_DETAILS_TEMPLATE = """
+<!doctype html>
+<html><head><title>Attempt Details</title></head>
+<body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
+<h1>Attempt: {{ attempt.quiz_name }}</h1>
+<p>Score: {{ attempt.score_percent }}%</p>
+<a href="/my-scores" style="color:#a78bfa">Back to Scores</a>
+</body>
+</html>
+"""
+
+REVIEW_ATTEMPT_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Review Attempt - {{ attempt.quiz_name }}</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--success:#34d399;--danger:#f87171;--warning:#fbbf24;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:900px;margin:28px auto;padding:0 18px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+.header{margin-bottom:30px;padding-bottom:20px;border-bottom:1px solid var(--card-border)}
+.header h1{font-size:24px;font-weight:700;margin:0 0 8px 0}
+.summary{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px}
+.summary-item{font-size:14px;color:var(--text-secondary)}
+.summary-item strong{color:var(--text-primary)}
+.question-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;margin-bottom:20px;overflow:hidden}
+.question-card.correct{border-left:4px solid var(--success)}
+.question-card.incorrect{border-left:4px solid var(--danger)}
+.question-card.skipped{border-left:4px solid var(--text-muted)}
+.q-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:rgba(255,255,255,0.02);cursor:pointer}
+.q-header:hover{background:rgba(255,255,255,0.04)}
+.q-num{font-size:14px;font-weight:700;color:var(--accent)}
+.q-meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted);align-items:center}
+.q-flag{color:var(--warning)}
+.q-time{color:var(--text-secondary)}
+.result-badge{padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.result-correct{background:rgba(52,211,153,0.2);color:var(--success)}
+.result-incorrect{background:rgba(248,113,113,0.2);color:var(--danger)}
+.result-skipped{background:rgba(148,163,184,0.2);color:var(--text-muted)}
+.q-body{padding:20px;display:none}
+.q-body.expanded{display:block}
+.q-stem{font-size:15px;line-height:1.6;margin-bottom:20px}
+.choice{padding:14px;border-radius:8px;margin-bottom:12px;font-size:14px;border:1px solid var(--card-border)}
+.choice.correct-answer{border-color:var(--success);background:rgba(52,211,153,0.08)}
+.choice.user-selected{border-color:var(--accent);background:rgba(167,139,250,0.08)}
+.choice.user-selected.wrong{border-color:var(--danger);background:rgba(248,113,113,0.08)}
+.choice-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.choice-label{font-weight:700;color:var(--text-primary)}
+.choice-tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px}
+.tag-correct{background:var(--success);color:#000}
+.tag-your{background:var(--danger);color:#fff}
+.tag-your-correct{background:var(--success);color:#000}
+.choice-text{color:var(--text-secondary);line-height:1.5}
+.choice-explanation{margin-top:10px;padding-top:10px;border-top:1px solid var(--card-border);font-size:13px;color:var(--text-muted);line-height:1.5}
+.general-feedback{margin-top:16px;padding:16px;background:rgba(167,139,250,0.05);border-radius:8px;border-left:3px solid var(--accent)}
+.general-feedback-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:8px}
+.general-feedback-content{font-size:14px;color:var(--text-secondary);line-height:1.6}
+.your-answer-summary{font-size:13px;color:var(--text-muted);margin-bottom:12px}
+.your-answer-summary strong{color:var(--text-primary)}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/my-scores" class="nav-back">← Back to My Scores</a>
+  
+  <div class="header">
+    <h1>Review: {{ attempt.quiz_name }}</h1>
+    <div class="summary">
+      <div class="summary-item"><strong>Score:</strong> {{ attempt.score_percent }}%</div>
+      <div class="summary-item"><strong>Result:</strong> {{ attempt.correct_count }} / {{ attempt.total_questions }} correct</div>
+      <div class="summary-item"><strong>Time:</strong> {{ (attempt.time_spent_seconds // 60)|int }}m {{ attempt.time_spent_seconds % 60 }}s</div>
+    </div>
+  </div>
+  
+  {% for resp in responses %}
+  <div class="question-card {% if resp.is_correct %}correct{% elif resp.user_answer %}incorrect{% else %}skipped{% endif %}">
+    <div class="q-header" onclick="toggleQuestion(this)">
+      <div class="q-num">Question {{ resp.question_number|default(loop.index) }}</div>
+      <div class="q-meta">
+        {% if resp.flagged %}<span class="q-flag">🚩</span>{% endif %}
+        <span class="q-time">⏱️ {{ resp.time_spent_seconds|default(0) }}s</span>
+        <span class="result-badge {% if resp.is_correct %}result-correct{% elif resp.user_answer %}result-incorrect{% else %}result-skipped{% endif %}">
+          {% if resp.is_correct %}✓ Correct{% elif resp.user_answer %}✗ Incorrect{% else %}Skipped{% endif %}
+        </span>
+      </div>
+    </div>
+    
+    <div class="q-body">
+      <div class="q-stem">{{ resp.question_text|safe }}</div>
+      
+      <div class="your-answer-summary">
+        <strong>Your Answer:</strong> {{ resp.user_answer_label if resp.user_answer_label else 'Skipped' }} | 
+        <strong>Correct Answer:</strong> {{ resp.correct_answer_label|default('N/A') }}
+      </div>
+      
+      {% for choice in resp.choices %}
+      <div class="choice 
+        {% if choice.id == resp.correct_answer %}correct-answer{% endif %}
+        {% if choice.id == resp.user_answer %}user-selected{% if choice.id != resp.correct_answer %} wrong{% endif %}{% endif %}">
+        <div class="choice-header">
+          <span class="choice-label">{{ choice.label }}. {{ choice.text|safe|truncate(100) }}</span>
+          <span>
+            {% if choice.id == resp.correct_answer %}<span class="choice-tag {% if choice.id == resp.user_answer %}tag-your-correct{% else %}tag-correct{% endif %}">{% if choice.id == resp.user_answer %}✓ Your Correct Answer{% else %}✓ Correct{% endif %}</span>{% endif %}
+            {% if choice.id == resp.user_answer and choice.id != resp.correct_answer %}<span class="choice-tag tag-your">Your Answer</span>{% endif %}
+          </span>
+        </div>
+        {% if choice.explanation %}
+        <div class="choice-explanation">{{ choice.explanation|safe }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      
+      {% if not is_mock and resp.general_feedback %}
+      <div class="general-feedback">
+        <div class="general-feedback-title">General Explanation</div>
+        <div class="general-feedback-content">{{ resp.general_feedback|safe }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function toggleQuestion(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('expanded');
+}
+// Auto-expand first 3 questions
+document.addEventListener('DOMContentLoaded', function() {
+  const bodies = document.querySelectorAll('.q-body');
+  bodies.forEach((b, i) => { if (i < 3) b.classList.add('expanded'); });
+});
+</script>
+</body>
+</html>
+"""
+
+PROFILE_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Profile - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--success:#34d399;--text-primary:#f1f5f9;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:900px;margin:28px auto;padding:0 18px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+.profile-header{display:flex;gap:24px;align-items:center;margin-bottom:30px}
+.avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent) 0%,#d4af37 100%);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;color:#000}
+.user-info h1{font-size:24px;margin:0 0 4px 0}
+.user-info p{margin:0;color:var(--text-muted);font-size:14px}
+.status-badge{display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;margin-top:8px;background:rgba(52,211,153,0.2);color:var(--success)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:30px}
+.stat-card{background:var(--card);border:1px solid var(--card-border);border-radius:12px;padding:20px;text-align:center}
+.stat-value{font-size:28px;font-weight:700}
+.stat-label{font-size:12px;color:var(--text-muted);margin-top:4px}
+.section-title{font-size:18px;font-weight:700;margin-bottom:16px}
+.activity-list{background:var(--card);border:1px solid var(--card-border);border-radius:12px;overflow:hidden}
+.activity-item{padding:14px 20px;border-bottom:1px solid var(--card-border);display:flex;justify-content:space-between;align-items:center}
+.activity-item:last-child{border-bottom:none}
+.activity-name{font-weight:600}
+.activity-meta{font-size:13px;color:var(--text-muted)}
+.activity-score{font-weight:700;color:var(--success)}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Dashboard</a>
+  <div class="profile-header">
+    <div class="avatar">{{ user.name[:1]|upper if user.name else 'U' }}</div>
+    <div class="user-info">
+      <h1>{{ user.name|default('User') }}</h1>
+      <p>{{ user.email|default(session.get('user_id', 'N/A')) }}</p>
+      <span class="status-badge">Active</span>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-value">{{ stats.total_attempts|default(0) }}</div><div class="stat-label">Total Attempts</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.avg_module_score|default(0)|int }}%</div><div class="stat-label">Avg Practice</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.avg_mock_score|default(0)|int }}%</div><div class="stat-label">Avg Mock</div></div>
+    <div class="stat-card"><div class="stat-value">{{ stats.modules_completed|default(0) }}</div><div class="stat-label">Modules Done</div></div>
+  </div>
+  <div class="section-title">📊 Recent Activity</div>
+  {% if recent_attempts %}
+  <div class="activity-list">
+    {% for attempt in recent_attempts %}
+    <div class="activity-item">
+      <div><div class="activity-name">{{ attempt.quiz_name }}</div><div class="activity-meta">{{ attempt.timestamp[:10] if attempt.timestamp else 'N/A' }}</div></div>
+      <div class="activity-score">{{ attempt.score_percent }}%</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:var(--text-muted)">No recent activity. Start practicing!</p>
+  {% endif %}
+  <div style="margin-top:20px"><a href="/my-scores" style="color:var(--accent);text-decoration:none;font-weight:600">View All Scores →</a></div>
+</div>
+</body>
+</html>
+"""
+
+FLASHCARD_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Flashcards - CFA Level 1</title>
+<style>
+:root{--bg:#0f1419;--card:#1a202c;--card-border:#2d3748;--accent:#a78bfa;--success:#34d399;--text-primary:#f1f5f9;--text-muted:#94a3b8}
+body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+.container{max-width:800px;margin:28px auto;padding:0 18px}
+.nav-back{display:inline-flex;align-items:center;gap:8px;color:var(--accent);text-decoration:none;margin-bottom:20px;font-weight:600}
+.header{margin-bottom:30px}
+.header h1{font-size:24px;font-weight:700;margin:0 0 8px 0}
+.header p{color:var(--text-muted);font-size:14px;margin:0}
+.flashcard{background:var(--card);border:1px solid var(--card-border);border-radius:16px;padding:40px;min-height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s;text-align:center;margin-bottom:20px}
+.flashcard:hover{border-color:var(--accent);transform:translateY(-4px)}
+.flashcard-term{font-size:24px;font-weight:700}
+.flashcard-definition{font-size:18px;color:var(--text-muted);line-height:1.6}
+.controls{display:flex;gap:16px;justify-content:center;margin-bottom:20px}
+.btn{padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;border:none;transition:all 0.2s}
+.btn-prev,.btn-next{background:var(--card);color:var(--text-primary);border:1px solid var(--card-border)}
+.btn-prev:hover,.btn-next:hover{border-color:var(--accent);background:rgba(167,139,250,0.1)}
+.counter{text-align:center;color:var(--text-muted);font-size:14px}
+.empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.empty h2{color:var(--text-primary);margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/menu" class="nav-back">← Back to Dashboard</a>
+  <div class="header">
+    <h1>📇 Flashcards</h1>
+    <p>{{ total_cards }} cards from CFA Curriculum</p>
+  </div>
+  
+  {% if cards %}
+  <div class="flashcard" id="flashcard" onclick="flipCard()">
+    <div id="cardContent" class="flashcard-term"></div>
+  </div>
+  
+  <div class="controls">
+    <button class="btn btn-prev" onclick="prevCard()">← Previous</button>
+    <button class="btn btn-next" onclick="nextCard()">Next →</button>
+  </div>
+  
+  <div class="counter">Card <span id="cardNum">1</span> of {{ total_cards }}</div>
+  
+  <script>
+  const cards = {{ cards|tojson }};
+  let idx = 0;
+  let showingTerm = true;
+  
+  function render() {
+    const card = cards[idx];
+    const content = showingTerm ? card.term : card.definition;
+    document.getElementById('cardContent').textContent = content;
+    document.getElementById('cardContent').className = showingTerm ? 'flashcard-term' : 'flashcard-definition';
+    document.getElementById('cardNum').textContent = idx + 1;
+  }
+  
+  function flipCard() {
+    showingTerm = !showingTerm;
+    render();
+  }
+  
+  function nextCard() {
+    idx = (idx + 1) % cards.length;
+    showingTerm = true;
+    render();
+  }
+  
+  function prevCard() {
+    idx = (idx - 1 + cards.length) % cards.length;
+    showingTerm = true;
+    render();
+  }
+  
+  render();
+  </script>
+  {% else %}
+  <div class="empty">
+    <h2>No Flashcards Yet</h2>
+    <p>Flashcards will be available after the CFA PDF is processed.</p>
+    <p>Check back soon!</p>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>
+"""
+
 @app.route('/api/session-details')
 @login_required
 def get_session_details_api():
@@ -3254,35 +4505,7 @@ def file(filename):
         resume_data=resume_data
     )
 
-# ========== ADMIN ONE-TIME FIX: Rebuild All User Snapshots ==========
-@app.route('/admin/rebuild-all-snapshots', methods=['POST'])
-@admin_required
-def rebuild_all_snapshots():
-    """
-    One-time admin endpoint to rebuild all user progress snapshots from quiz history.
-    This fixes average score calculations for all users retrospectively.
-    """
-    try:
-        all_users = db.get_all_users()
-        results = {'total_users': len(all_users), 'processed': 0, 'modules_rebuilt': 0, 'errors': []}
-        
-        for user in all_users:
-            user_id = user.get('id')
-            if not user_id:
-                continue
-            try:
-                count = db.rebuild_snapshots_from_history(user_id)
-                results['modules_rebuilt'] += count
-                results['processed'] += 1
-            except Exception as e:
-                results['errors'].append({'user_id': user_id, 'error': str(e)})
-        
-        return jsonify({'status': 'success', 'message': 'Snapshots rebuilt successfully', 'results': results})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
 if __name__ == "__main__":
-
     # Initialize Redis database connection
     print("="* 50)
     print("🚀 Starting CFA Level 1 Quiz Application")
