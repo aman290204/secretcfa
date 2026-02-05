@@ -1778,6 +1778,365 @@ def load_file_preview():
         parsed = json.load(fh)
     return jsonify({"path": chosen, "parsed": parsed})
 
+# ---------- ADMIN TEMPLATES ----------
+
+MANAGE_USERS_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        th { background: rgba(255, 255, 255, 0.05); font-weight: 600; color: #4d8fd6; }
+        .btn { display: inline-block; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin: 0 4px; }
+        .btn-primary { background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 82, 165, 0.4); }
+        .btn-danger { background: linear-gradient(135deg, #C62828 0%, #E57373 100%); color: white; }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(198, 40, 40, 0.4); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: rgba(46, 125, 50, 0.2); color: #4caf50; border: 1px solid #4caf50; }
+        .badge-danger { background: rgba(198, 40, 40, 0.2); color: #ef5350; border: 1px solid #ef5350; }
+        .badge-admin { background: rgba(212, 175, 55, 0.2); color: #d4af37; border: 1px solid #d4af37; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👥 Manage Users</h1>
+        
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <h2 style="color: #cbd5e1;">User List</h2>
+                <div>
+                    <a href="/add-user" class="btn btn-primary">➕ Add User</a>
+                    <a href="/menu" class="btn btn-secondary">🏠 Back to Menu</a>
+                </div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Expiry Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td><code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">{{ user.id }}</code></td>
+                        <td>{{ user.name }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                                <span class="badge badge-admin">ADMIN</span>
+                            {% else %}
+                                <span class="badge" style="background: rgba(77, 143, 214, 0.2); color: #4d8fd6; border: 1px solid #4d8fd6;">USER</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.expiry if user.expiry else 'No Expiry' }}</td>
+                        <td>
+                            {% if user.is_valid %}
+                                <span class="badge badge-success">✓ Active</span>
+                            {% else %}
+                                <span class="badge badge-danger">✗ Expired</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/edit-user/{{ user.id }}" class="btn btn-primary" style="padding: 6px 12px; font-size: 14px;">✏️ Edit</a>
+                            <form action="/remove-user" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete user {{ user.id }}?');">
+                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 14px;">🗑️ Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+EDIT_USER_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit User - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #4d8fd6; background: rgba(255, 255, 255, 0.08); }
+        .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin-right: 10px; }
+        .btn-primary { background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 82, 165, 0.4); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .help-text { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✏️ Edit User</h1>
+        
+        <div class="card">
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" value="{{ user.name }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role">Role *</label>
+                    <select id="role" name="role" required>
+                        <option value="user" {% if user.role == 'user' %}selected{% endif %}>User</option>
+                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="expiry">Expiry Date (Optional)</label>
+                    <input type="date" id="expiry" name="expiry" value="{{ user.expiry if user.expiry else '' }}">
+                    <div class="help-text">Leave blank for no expiry. Format: YYYY-MM-DD</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">New Password (Optional)</label>
+                    <input type="password" id="password" name="password" placeholder="Leave blank to keep current password">
+                    <div class="help-text">Only fill this if you want to change the password</div>
+                </div>
+                
+                <div style="margin-top: 30px;">
+                    <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+                    <a href="/manage-users" class="btn btn-secondary">← Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+REMOVE_USER_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remove User - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #ef5350 0%, #C62828 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
+        select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; }
+        select:focus { outline: none; border-color: #C62828; background: rgba(255, 255, 255, 0.08); }
+        .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin-right: 10px; }
+        .btn-danger { background: linear-gradient(135deg, #C62828 0%, #E57373 100%); color: white; }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(198, 40, 40, 0.4); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+        .success { background: rgba(46, 125, 50, 0.2); border: 1px solid #4caf50; color: #4caf50; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .warning { background: rgba(251, 191, 36, 0.2); border: 1px solid #fbbf24; color: #fbbf24; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Remove User</h1>
+        
+        <div class="card">
+            {% if success %}
+                <div class="success">✓ {{ success }}</div>
+            {% endif %}
+            
+            {% if error %}
+                <div class="error">✗ {{ error }}</div>
+            {% endif %}
+            
+            <div class="warning">
+                ⚠️ <strong>Warning:</strong> Removing a user is permanent and cannot be undone. All their progress will be deleted.
+            </div>
+            
+            <form method="POST" onsubmit="return confirm('Are you absolutely sure you want to delete this user? This action cannot be undone.');">
+                <div class="form-group">
+                    <label for="user_id">Select User to Remove *</label>
+                    <select id="user_id" name="user_id" required>
+                        <option value="">-- Select a user --</option>
+                        {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.id }} - {{ user.name }} ({{ user.role }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div style="margin-top: 30px;">
+                    <button type="submit" class="btn btn-danger">🗑️ Delete User</button>
+                    <a href="/manage-users" class="btn btn-secondary">← Back to Users</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+LOGIN_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CFA Level 1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-container { width: 100%; max-width: 420px; padding: 20px; }
+        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 40px; backdrop-filter: blur(10px); }
+        h1 { font-size: 28px; margin-bottom: 10px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; font-size: 14px; }
+        input { width: 100%; padding: 12px 16px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; transition: all 0.2s; }
+        input:focus { outline: none; border-color: #4d8fd6; background: rgba(255, 255, 255, 0.08); box-shadow: 0 0 0 3px rgba(77, 143, 214, 0.1); }
+        .btn-primary { width: 100%; padding: 14px; border-radius: 8px; border: none; background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; font-weight: 600; font-size: 16px; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 82, 165, 0.4); }
+        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="card">
+            <h1>🎓 CFA Level 1</h1>
+            <div class="subtitle">Please login to continue</div>
+            
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label for="user_id">User ID</label>
+                    <input type="text" id="user_id" name="user_id" required autofocus>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <button type="submit" class="btn-primary">🔐 Login</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+ADD_USER_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add User - Admin Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: linear-gradient(135deg, #0A2540 0%, #121212 100%); color: #FAFAFA; min-height: 100vh; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 32px; margin-bottom: 30px; background: linear-gradient(135deg, #4d8fd6 0%, #d4af37 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #cbd5e1; font-weight: 500; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.05); color: #FAFAFA; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #4d8fd6; background: rgba(255, 255, 255, 0.08); }
+        .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.2s; cursor: pointer; border: none; margin-right: 10px; }
+        .btn-primary { background: linear-gradient(135deg, #0052A5 0%, #4d8fd6 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 82, 165, 0.4); }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); color: #cbd5e1; }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+        .error { background: rgba(198, 40, 40, 0.2); border: 1px solid #C62828; color: #ef5350; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        .help-text { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>➕ Add New User</h1>
+        
+        <div class="card">
+            {% if error %}
+                <div class="error">{{ error }}</div>
+            {% endif %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label for="user_id">User ID *</label>
+                    <input type="text" id="user_id" name="user_id" required>
+                    <div class="help-text">Unique identifier for the user (username)</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password *</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role">Role *</label>
+                    <select id="role" name="role" required>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="expiry">Expiry Date (Optional)</label>
+                    <input type="date" id="expiry" name="expiry">
+                    <div class="help-text">Leave blank for no expiry</div>
+                </div>
+                
+                <div style="margin-top: 30px;">
+                    <button type="submit" class="btn btn-primary">✓ Create User</button>
+                    <a href="/manage-users" class="btn btn-secondary">← Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
 # ---------- existing routes ----------
 
 
