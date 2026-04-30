@@ -4297,26 +4297,61 @@ def update_exam_date():
 @login_required
 def practice_dashboard():
     user_id = session.get('user_id')
-    stats = db.get_user_quiz_stats(user_id)
+
+    # PERF: Cache per-user stats for 2 minutes to avoid 1000-record Redis query on every visit
+    STATS_CACHE_KEY = f'cache:stats:{user_id}'
+    stats_raw = None
+    try:
+        if db.redis_client:
+            stats_raw = db.redis_client.get(STATS_CACHE_KEY)
+    except Exception:
+        pass
+    if stats_raw:
+        stats = json.loads(stats_raw)
+    else:
+        stats = db.get_user_quiz_stats(user_id)
+        try:
+            if db.redis_client:
+                db.redis_client.setex(STATS_CACHE_KEY, 120, json.dumps(stats))
+        except Exception:
+            pass
+
     attempts = db.get_user_quiz_attempts(user_id, limit=1000)
     paused_attempts = db.get_all_paused_attempts(user_id)
-    
-    # Load all module files to get total questions
-    all_files = []
-    for f in os.listdir(DATA_FOLDER):
-        if f.endswith(".json") and f.startswith("Module"):
-            name = f[:-5]
-            path = os.path.join(DATA_FOLDER, f)
-            try:
-                with open(path, 'r', encoding='utf-8') as jf:
-                    raw = json.load(jf)
-                    items = _find_items_structure(raw)
-                    all_files.append({
-                        'name': name,
-                        'questions': len(items),
-                        'num': get_module_number(name)
-                    })
-            except: continue
+
+    # PERF: Cache module file list (question counts) in Redis for 10 minutes
+    # Avoids parsing all 93+ Module JSON files on every /practice load
+    MODULE_FILES_CACHE_KEY = 'cache:module_files'
+    all_files_raw = None
+    try:
+        if db.redis_client:
+            all_files_raw = db.redis_client.get(MODULE_FILES_CACHE_KEY)
+    except Exception:
+        pass
+
+    if all_files_raw:
+        all_files = json.loads(all_files_raw)
+    else:
+        all_files = []
+        for f in os.listdir(DATA_FOLDER):
+            if f.endswith(".json") and f.startswith("Module"):
+                name = f[:-5]
+                path = os.path.join(DATA_FOLDER, f)
+                try:
+                    with open(path, 'r', encoding='utf-8') as jf:
+                        raw = json.load(jf)
+                        items = _find_items_structure(raw)
+                        all_files.append({
+                            'name': name,
+                            'questions': len(items),
+                            'num': get_module_number(name)
+                        })
+                except: continue
+        try:
+            if db.redis_client:
+                db.redis_client.setex(MODULE_FILES_CACHE_KEY, 600, json.dumps(all_files))
+        except Exception:
+            pass
 
     # Fetch snapshots for this user
     snapshots = db.get_all_module_progress(user_id)
