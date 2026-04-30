@@ -2074,14 +2074,7 @@ def menu():
         except Exception:
             pass  # Cache write failure is non-fatal
     
-    # Debug output
-    print(f"🔍 DEBUG - User: {session.get('user_id')}, Role: {session.get('user_role')}, Files found: {len(files)}")
-    print(f"🔍 DATA_FOLDER: {DATA_FOLDER}, exists: {os.path.exists(DATA_FOLDER)}")
-    if os.path.exists(DATA_FOLDER):
-        all_files = os.listdir(DATA_FOLDER)
-        json_files = [f for f in all_files if f.endswith('.json')]
-        print(f"🔍 JSON files in folder: {len(json_files)}")
-    
+
     # Get sort type from request
     sort_type = request.args.get('sort', 'id')
     files = sort_modules(files, sort_type)
@@ -2535,13 +2528,32 @@ def profile():
 def my_scores():
     """Display user's quiz scores and history from Redis"""
     user_id = session.get('user_id')
-    
-    # Get attempts from Redis
+
+    # Get attempts (limit 50 - already lightweight)
     attempts = db.get_user_quiz_attempts(user_id, limit=50)
-    stats = db.get_user_quiz_stats(user_id)
-    
-    return render_template_string(MY_SCORES_TEMPLATE, 
-                                  attempts=attempts, 
+
+    # PERF: Cache stats for 2 minutes to avoid full Redis scan on every load
+    STATS_CACHE_KEY = f'cache:stats:{user_id}'
+    stats = None
+    try:
+        _r = db.get_redis()
+        if _r:
+            raw = _r.get(STATS_CACHE_KEY)
+            if raw:
+                stats = json.loads(raw)
+    except Exception:
+        pass
+    if stats is None:
+        stats = db.get_user_quiz_stats(user_id)
+        try:
+            _r = db.get_redis()
+            if _r:
+                _r.setex(STATS_CACHE_KEY, 120, json.dumps(stats))
+        except Exception:
+            pass
+
+    return render_template_string(MY_SCORES_TEMPLATE,
+                                  attempts=attempts,
                                   stats=stats,
                                   session=session,
                                   user_role=session.get('user_role', 'user'))
@@ -4456,48 +4468,97 @@ def practice_dashboard():
 @login_required
 def mock_dashboard():
     user_id = session.get('user_id')
-    stats = db.get_user_quiz_stats(user_id)
+
+    # PERF: Cache stats for 2 minutes (avoids full Redis scan on every /mocks load)
+    STATS_CACHE_KEY = f'cache:stats:{user_id}'
+    stats = None
+    try:
+        _r = db.get_redis()
+        if _r:
+            raw = _r.get(STATS_CACHE_KEY)
+            if raw:
+                stats = json.loads(raw)
+    except Exception:
+        pass
+    if stats is None:
+        stats = db.get_user_quiz_stats(user_id)
+        try:
+            _r = db.get_redis()
+            if _r:
+                _r.setex(STATS_CACHE_KEY, 120, json.dumps(stats))
+        except Exception:
+            pass
+
+    # attempts needed only for per-mock completion status
     attempts = db.get_user_quiz_attempts(user_id, limit=1000)
-    
-    mock_files = []
-    for f in os.listdir(DATA_FOLDER):
-        if f.endswith(".json") and ('Mock' in f or f.startswith('Mock')):
-            name = f[:-5]
-            path = os.path.join(DATA_FOLDER, f)
-            try:
-                with open(path, 'r', encoding='utf-8') as jf:
-                    raw = json.load(jf)
-                    items = _find_items_structure(raw)
-                    
-                    # Determine time limit (default 135 mins = 02:15:00)
-                    quiz_meta = raw.get("quiz", {})
-                    time_sec = quiz_meta.get("settings", {}).get("session_time_limit_in_seconds", 8100)
-                    h = time_sec // 3600
-                    m = (time_sec % 3600) // 60
-                    s = time_sec % 60
-                    time_str = f"{h:02d}:{m:02d}:{s:02d}"
-                    
-                    # Find latest attempt
-                    attempt = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
-                    completed = attempt is not None
-                    score = attempt.get('score_percent', 0) if completed else 0
-                    correct = attempt.get('correct_count', 0) if completed else 0
-                    
-                    # DISPLAY-ONLY NAME CLEANUP: Strip all leading text before "Mock Exam"
-                    cleaned_name = name
-                    if "Mock Exam" in name:
-                        cleaned_name = name[name.find("Mock Exam"):]
-                    
-                    mock_files.append({
-                        'name': name,
-                        'display_name': cleaned_name,
-                        'questions': len(items),
-                        'time_limit': time_str,
-                        'completed': completed,
-                        'score': int(score),
-                        'correct': correct
-                    })
-            except: continue
+
+    # PERF: Cache mock file metadata in Redis for 10 minutes
+    # Mock JSON files are large — parsing all on every /mocks load is slow
+    MOCK_FILES_CACHE_KEY = 'cache:mock_files'
+    mock_files_meta = None
+    try:
+        _r = db.get_redis()
+        if _r:
+            raw = _r.get(MOCK_FILES_CACHE_KEY)
+            if raw:
+                mock_files_meta = json.loads(raw)
+    except Exception:
+        pass
+
+    if mock_files_meta is not None:
+        # Cache hit: re-apply user-specific completion status
+        mock_files = []
+        for mf in mock_files_meta:
+            name = mf['name']
+            attempt = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
+            mock_files.append({**mf,
+                'completed': attempt is not None,
+                'score': int(attempt.get('score_percent', 0)) if attempt else 0,
+                'correct': attempt.get('correct_count', 0) if attempt else 0
+            })
+    else:
+        # Cache miss: parse files and build both lists
+        mock_files = []
+        mock_files_meta = []  # cacheable metadata (no user-specific fields)
+        for f in os.listdir(DATA_FOLDER):
+            if f.endswith(".json") and ('Mock' in f or f.startswith('Mock')):
+                name = f[:-5]
+                path = os.path.join(DATA_FOLDER, f)
+                try:
+                    with open(path, 'r', encoding='utf-8') as jf:
+                        raw = json.load(jf)
+                        items = _find_items_structure(raw)
+
+                        quiz_meta = raw.get("quiz", {})
+                        time_sec = quiz_meta.get("settings", {}).get("session_time_limit_in_seconds", 8100)
+                        h = time_sec // 3600
+                        m = (time_sec % 3600) // 60
+                        s = time_sec % 60
+                        time_str = f"{h:02d}:{m:02d}:{s:02d}"
+
+                        cleaned_name = name
+                        if "Mock Exam" in name:
+                            cleaned_name = name[name.find("Mock Exam"):]
+
+                        attempt = next((a for a in attempts if (a.get('quiz_name') == name or a.get('quiz_id') == name)), None)
+
+                        meta = {'name': name, 'display_name': cleaned_name,
+                                'questions': len(items), 'time_limit': time_str}
+                        mock_files_meta.append(meta)
+                        mock_files.append({**meta,
+                            'completed': attempt is not None,
+                            'score': int(attempt.get('score_percent', 0)) if attempt else 0,
+                            'correct': attempt.get('correct_count', 0) if attempt else 0
+                        })
+                except: continue
+
+        # Store metadata (no user fields) in Redis
+        try:
+            _r = db.get_redis()
+            if _r:
+                _r.setex(MOCK_FILES_CACHE_KEY, 600, json.dumps(mock_files_meta))
+        except Exception:
+            pass
     
     # DETERMINISTIC PRIORITY ORDERING
     def get_mock_sort_key(m):
