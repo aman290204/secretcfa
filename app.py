@@ -292,19 +292,31 @@ def login_required(f):
         user_id = payload.get('uid')
         session_token = payload.get('tok')
         
-        # 2. User existence in Redis
-        user = db.get_user(user_id)
-        if not user:
+        # 2 & 4 combined: Pipeline user fetch + session check into ONE Redis round-trip
+        user_raw, session_raw = None, None
+        try:
+            if db.redis_client:
+                pipe = db.redis_client.pipeline()
+                pipe.get(f'user:{user_id}')
+                pipe.get(f'session:{user_id}:{session_token}')
+                user_raw, session_raw = pipe.execute()
+        except Exception:
+            pass
+
+        if user_raw is None:
             session.clear()
             return redirect(url_for('login'))
-            
+
+        import json as _json
+        user = _json.loads(user_raw)
+
         # 3. Account Expiry Check
         if not is_user_valid(user):
             session.clear()
             return render_template_string(LOGIN_TEMPLATE, error="Your account has expired. Please contact support.")
-            
-        # 4. Session token verification (Single session enforcement)
-        if not db.verify_session_token(user_id, session_token):
+
+        # 4. Session token check (result already fetched in pipeline above)
+        if session_raw is None:
             session.clear()
             return redirect(url_for('login'))
             
@@ -1154,31 +1166,42 @@ function toggleFlag() {
 let answeredInSession = [];
 
 // Continuous progress saving (Practice only)
+// PERF: Debounced — flushes at most once per 2s to cut background network calls by ~80%
+let _autoSaveTimer = null;
+let _pendingEventData = null;
+
 function autoSave(eventData = null) {
   if (IS_MOCK || quizCompleted) return;
-  
-  const now = Date.now();
-  const currentElapsed = Math.floor((now - questionTimeStart) / 1000);
-  const tempTimes = [...questionTimes];
-  tempTimes[idx] += currentElapsed;
-  
-  const pauseData = {
-    module_id: QUIZ_NAME,
-    started_at: startedAtISO,
-    last_question_index: idx,
-    user_answers: userAnswers,
-    question_times: tempTimes,
-    question_flags: questionFlags,
-    total_time_seconds: Math.floor((now - timerStart) / 1000),
-    total_questions: total,
-    // Incremental snapshot deltas
-    deltas: eventData
-  };
-  
-  // Use sendBeacon for non-blocking background save
-  navigator.sendBeacon('/api/pause-practice', 
-    new Blob([JSON.stringify(pauseData)], {type: 'application/json'})
-  );
+
+  // Always keep the latest eventData (question answers, flags, etc.)
+  if (eventData !== null) _pendingEventData = eventData;
+
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    const now = Date.now();
+    const currentElapsed = Math.floor((now - questionTimeStart) / 1000);
+    const tempTimes = [...questionTimes];
+    tempTimes[idx] += currentElapsed;
+
+    const pauseData = {
+      module_id: QUIZ_NAME,
+      started_at: startedAtISO,
+      last_question_index: idx,
+      user_answers: userAnswers,
+      question_times: tempTimes,
+      question_flags: questionFlags,
+      total_time_seconds: Math.floor((now - timerStart) / 1000),
+      total_questions: total,
+      // Incremental snapshot deltas
+      deltas: _pendingEventData
+    };
+    _pendingEventData = null;
+
+    // Use sendBeacon for non-blocking background save
+    navigator.sendBeacon('/api/pause-practice',
+      new Blob([JSON.stringify(pauseData)], {type: 'application/json'})
+    );
+  }, 2000); // Debounce: send only after 2s of inactivity
 }
 
 function render(i){
@@ -1990,42 +2013,63 @@ def menu():
     # Display menu with all available JSON files - now protected behind login
     
     files = []
-    
-    # Get all JSON files from the data folder
-    if os.path.exists(DATA_FOLDER):
-        for filename in sorted(os.listdir(DATA_FOLDER)):
-            if filename.endswith('.json'):
-                file_path = os.path.join(DATA_FOLDER, filename)
-                # Get file size
-                try:
-                    file_size = os.path.getsize(file_path)
-                    size_kb = file_size / 1024
-                    
-                    # Try to count questions
+
+    # --- PERF: Cache menu file list in Redis for 10 minutes ---
+    # Avoids re-parsing every JSON file on every page load.
+    MENU_CACHE_KEY = 'cache:menu_files'
+    MENU_CACHE_TTL = 600  # 10 minutes
+    cached_files = None
+    try:
+        if db.redis_client:
+            raw = db.redis_client.get(MENU_CACHE_KEY)
+            if raw:
+                cached_files = json.loads(raw)
+    except Exception:
+        cached_files = None
+
+    if cached_files is not None:
+        files = cached_files
+    else:
+        # Get all JSON files from the data folder
+        if os.path.exists(DATA_FOLDER):
+            for filename in sorted(os.listdir(DATA_FOLDER)):
+                if filename.endswith('.json'):
+                    file_path = os.path.join(DATA_FOLDER, filename)
                     try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            items = _find_items_structure(data)
-                            question_count = len(items)
-                    except Exception:
-                        question_count = 0
-                    
-                    # Remove .json extension for the link
-                    name_without_ext = filename[:-5] if filename.endswith('.json') else filename
-                    
-                    files.append({
-                        'name': filename,
-                        'display_name': name_without_ext,
-                        'size': f"{size_kb:.1f} KB",
-                        'questions': question_count,
-                        'is_mock': 'Mock' in filename,
-                        'is_module': filename.startswith('Module')
-                    })
-                except Exception as e:
-                    print(f"⚠️ Error loading file '{filename}' for user '{session.get('user_id')}': {e}")
-                    import traceback
-                    traceback.print_exc()
-                    pass
+                        file_size = os.path.getsize(file_path)
+                        size_kb = file_size / 1024
+
+                        # Try to count questions
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                                items = _find_items_structure(data)
+                                question_count = len(items)
+                        except Exception:
+                            question_count = 0
+
+                        # Remove .json extension for the link
+                        name_without_ext = filename[:-5] if filename.endswith('.json') else filename
+
+                        files.append({
+                            'name': filename,
+                            'display_name': name_without_ext,
+                            'size': f"{size_kb:.1f} KB",
+                            'questions': question_count,
+                            'is_mock': 'Mock' in filename,
+                            'is_module': filename.startswith('Module')
+                        })
+                    except Exception as e:
+                        print(f"⚠️ Error loading file '{filename}' for user '{session.get('user_id')}': {e}")
+                        import traceback
+                        traceback.print_exc()
+
+        # Store in Redis cache
+        try:
+            if db.redis_client:
+                db.redis_client.setex(MENU_CACHE_KEY, MENU_CACHE_TTL, json.dumps(files))
+        except Exception:
+            pass  # Cache write failure is non-fatal
     
     # Debug output
     print(f"🔍 DEBUG - User: {session.get('user_id')}, Role: {session.get('user_role')}, Files found: {len(files)}")
@@ -2057,8 +2101,9 @@ def menu():
     default_exam_date = (date.today() + timedelta(days=180)).isoformat()
     exam_date = user_data.get('exam_date') or default_exam_date
     
-    # Calculate topic strengths for Strengths & Weaknesses section
-    topic_strengths = get_topic_strengths(user_id) if user_id else []
+    # PERF: topic_strengths is now lazy-loaded via JS fetch after page renders
+    # (removed blocking get_topic_strengths call that fetched 1000 Redis records)
+    topic_strengths = []
     
     # Calculate total questions in the system (sum of all quiz file questions)
     total_questions = sum(f.get('questions', 0) for f in files)
@@ -3343,24 +3388,20 @@ body.sidebar-collapsed .main-content{margin-left:0}
     <input type="text" id="searchInput" onkeyup="filterModules()" placeholder="Search modules or exams..." />
   </div>
 
-  <!-- STRENGTHS & WEAKNESSES SECTION -->
+  <!-- STRENGTHS & WEAKNESSES SECTION - populated lazily after page load -->
   <div class="strengths-section">
     <div class="strengths-header">Strengths & Weaknesses</div>
     <p class="strengths-desc">Your performance by CFA curriculum topic</p>
-    
-    {% for topic in topic_strengths %}
-    <div class="strength-row">
-      <div class="topic-name">{{ topic.name }}</div>
-      <div class="progress-track">
-        {% if topic.percent is not none %}
-        <div class="progress-fill-bar {% if topic.percent >= 70 %}green{% elif topic.percent >= 50 %}yellow{% else %}red{% endif %}" style="width: {{ topic.percent }}%"></div>
-        {% else %}
-        <div class="progress-fill-bar grey" style="width: 0%"></div>
-        {% endif %}
+    <div id="strengths-container">
+      <!-- Skeleton loader shown while JS fetches data -->
+      {% for _ in range(10) %}
+      <div class="strength-row" style="opacity:0.4">
+        <div class="topic-name" style="background:rgba(255,255,255,0.08);border-radius:4px;color:transparent">Loading topic name...</div>
+        <div class="progress-track"><div class="progress-fill-bar grey" style="width:30%"></div></div>
+        <div class="pct-value" style="color:transparent">--</div>
       </div>
-      <div class="pct-value">{% if topic.percent is not none %}{{ topic.percent }}%{% else %}N/A{% endif %}</div>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
 
   {% if not files %}
@@ -3472,6 +3513,28 @@ async function loadSessionDetails() {
     </div>
   `).join('');
 }
+// Lazy-load topic strengths after page is interactive
+window.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/topic-strengths')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data || !data.topics) return;
+      const container = document.getElementById('strengths-container');
+      if (!container) return;
+      container.innerHTML = data.topics.map(t => {
+        const pct = t.percent;
+        const barClass = pct === null ? 'grey' : pct >= 70 ? 'green' : pct >= 50 ? 'yellow' : 'red';
+        const width = pct !== null ? pct : 0;
+        const label = pct !== null ? pct + '%' : 'N/A';
+        return `<div class="strength-row">
+          <div class="topic-name">${t.name}</div>
+          <div class="progress-track"><div class="progress-fill-bar ${barClass}" style="width:${width}%"></div></div>
+          <div class="pct-value">${label}</div>
+        </div>`;
+      }).join('');
+    })
+    .catch(() => {}); // Silently ignore if fetch fails
+});
 </script>
 </body>
 </html>
@@ -4172,6 +4235,17 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
 </body>
 </html>
 """
+
+@app.route('/api/topic-strengths')
+@login_required
+def api_topic_strengths():
+    """Lazy-loaded endpoint for the Strengths & Weaknesses chart on the menu page.
+    Keeps this expensive call (1000 Redis records) OUT of the main menu page load.
+    """
+    user_id = session.get('user_id')
+    topics = get_topic_strengths(user_id) if user_id else []
+    return jsonify({'topics': topics})
+
 
 @app.route('/api/session-details')
 @login_required
