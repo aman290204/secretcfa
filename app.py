@@ -1750,6 +1750,89 @@ function toggleSidebar() {
   document.body.classList.toggle('sidebar-collapsed');
 }
 </script>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -2686,6 +2769,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
     <button type="submit" class="btn">Sign In</button>
   </form>
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -2923,6 +3089,89 @@ document.querySelector('.restore-link').addEventListener('click', function(e) {
     });
 });
 </script>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3114,6 +3363,89 @@ body.sidebar-collapsed .main-content{margin-left:0}
   </div>
 </div>
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3561,6 +3893,89 @@ window.addEventListener('DOMContentLoaded', function() {
     .catch(() => {}); // Silently ignore if fetch fails
 });
 </script>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3581,6 +3996,89 @@ body{font-family:sans-serif;background:#121212;color:#fff;padding:20px}
 <h1>Quiz History</h1>
 <a href="/menu" style="color:#a78bfa">Back to Menu</a>
 {% for attempt in history %}<div class="card"><h3>{{ attempt.quiz_name }}</h3><p>Score: {{ attempt.score_percent }}% | Date: {{ attempt.timestamp }}</p><a href="/view-attempt/{{ attempt.id }}" class="btn">View Details</a></div>{% endfor %}
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3591,6 +4089,89 @@ RECENTLY_VIEWED_TEMPLATE = """
 <body style="background:#121212;color:#fff;font-family:sans-serif;padding:20px">
 <h1>Recently Viewed</h1>
 {% for item in recently_viewed %}<div><h3>{{ item.name }}</h3><a href="/{{ item.name }}" style="color:#a78bfa">Take Again</a></div>{% endfor %}
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3633,6 +4214,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
   </form>
   <div style="margin-top:20px;text-align:center"><a href="/manage-users" style="color:var(--accent);text-decoration:none;font-weight:600">← Back to Manage Users</a></div>
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3647,6 +4311,89 @@ REMOVE_USER_TEMPLATE = """
 <input type="text" name="user_id" placeholder="User ID" required><br>
 <button type="submit">Remove User</button>
 </form>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3711,6 +4458,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
   <p style="text-align:center;padding:40px;color:var(--text-muted)">No users found.</p>
   {% endif %}
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3768,6 +4598,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
     <a href="/manage-users" class="btn btn-secondary" style="text-decoration:none;display:block;text-align:center">← Cancel</a>
   </form>
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3857,6 +4770,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
     </div>
   </div>
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3958,6 +4954,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
   </div>
   {% endif %}
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -3969,6 +5048,89 @@ ATTEMPT_DETAILS_TEMPLATE = """
 <h1>Attempt: {{ attempt.quiz_name }}</h1>
 <p>Score: {{ attempt.score_percent }}%</p>
 <a href="/my-scores" style="color:#a78bfa">Back to Scores</a>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -4099,6 +5261,89 @@ document.addEventListener('DOMContentLoaded', function() {
   bodies.forEach((b, i) => { if (i < 3) b.classList.add('expanded'); });
 });
 </script>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -4165,6 +5410,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
   {% endif %}
   <div style="margin-top:20px"><a href="/my-scores" style="color:var(--accent);text-decoration:none;font-weight:600">View All Scores →</a></div>
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
@@ -4257,6 +5585,89 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
   </div>
   {% endif %}
 </div>
+
+<style id="skeleton-style">
+#page-skeleton{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background:var(--bg-primary,#0f0c29);
+  padding:24px;
+  overflow:hidden;
+  pointer-events:none;
+}
+#page-skeleton.active{display:block;}
+.sk-bar{
+  background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.13) 50%,rgba(255,255,255,.06) 75%);
+  background-size:400% 100%;
+  border-radius:8px;
+  animation:sk-shimmer 1.4s ease infinite;
+}
+@keyframes sk-shimmer{
+  0%{background-position:100% 50%}
+  100%{background-position:-100% 50%}
+}
+.sk-topbar{height:52px;width:100%;margin-bottom:24px;border-radius:12px;}
+.sk-card{height:220px;width:100%;border-radius:16px;margin-bottom:18px;}
+.sk-row{display:flex;gap:16px;margin-bottom:18px;}
+.sk-row .sk-bar{height:140px;flex:1;border-radius:16px;}
+.sk-title{height:32px;width:40%;margin-bottom:14px;border-radius:8px;}
+.sk-line{height:16px;width:80%;margin-bottom:10px;border-radius:6px;}
+.sk-line.short{width:55%;}
+.sk-line.xshort{width:35%;}
+</style>
+
+<div id="page-skeleton">
+  <div class="sk-bar sk-topbar"></div>
+  <div class="sk-bar sk-title"></div>
+  <div class="sk-bar sk-card"></div>
+  <div class="sk-row">
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+    <div class="sk-bar"></div>
+  </div>
+  <div class="sk-bar sk-line"></div>
+  <div class="sk-bar sk-line short"></div>
+  <div class="sk-bar sk-line xshort"></div>
+</div>
+
+<script>
+(function(){
+  var sk = document.getElementById('page-skeleton');
+  if(!sk) return;
+
+  // Show skeleton immediately on any navigation click
+  function showSkeleton(){
+    sk.classList.add('active');
+  }
+
+  // Intercept all <a> tags that navigate away
+  document.addEventListener('click', function(e){
+    var a = e.target.closest('a[href]');
+    if(!a) return;
+    var href = a.getAttribute('href');
+    // Skip: anchors, JS links, external, logout (instant), api calls
+    if(!href || href.startsWith('#') || href.startsWith('javascript')
+       || href.startsWith('http') || href.includes('/api/')
+       || href === '/logout' || a.target === '_blank') return;
+    showSkeleton();
+  });
+
+  // Intercept form submits (login, etc.)
+  document.addEventListener('submit', function(e){
+    var form = e.target;
+    // Only show on forms that do a full-page POST (not AJAX forms)
+    if(form.getAttribute('data-ajax') === 'true') return;
+    showSkeleton();
+  });
+
+  // Hide skeleton when page becomes visible (back/forward navigation)
+  window.addEventListener('pageshow', function(e){
+    sk.classList.remove('active');
+  });
+})();
+</script>
 </body>
 </html>
 """
