@@ -2721,53 +2721,262 @@ LOGIN_TEMPLATE = """
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Login - CFA Level 1 Quiz</title>
+<title>Login - SecretCFA</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet"/>
 <style>
-:root{--bg:#0f1419;--card:#1a202c;--muted:#94a3b8;--accent:#a78bfa;--success:#34d399;--danger:#f87171;--text-primary:#f1f5f9;--text-secondary:#cbd5e1;--gold:#d4af37}
-body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);color:#0f1724;height:100vh;display:flex;align-items:center;justify-content:center}
-.login-container{max-width:450px;width:90%;margin:20px auto;padding:40px;background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;animation: fadeInUp 0.5s ease-out;border:1px solid rgba(167,139,250,0.2)}
-.login-icon{font-size:64px;margin-bottom:20px;animation: bounce 1s ease infinite}
-.login-container h1{font-size:32px;margin:0 0 12px 0;background:linear-gradient(135deg, #a78bfa 0%, #d4af37 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.login-container p{color:var(--text-secondary);font-size:16px;margin:0 0 30px 0}
-.form-group{margin-bottom:24px;text-align:left}
-.form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);font-size:15px}
-.form-group input{width:100%;padding:14px;border:1px solid rgba(167,139,250,0.3);border-radius:10px;font-size:16px;transition:all 0.3s;background:rgba(255,255,255,0.05);color:var(--text-primary)}
-.form-group input::placeholder{color:var(--text-secondary);opacity:0.7}
-.form-group input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px rgba(167,139,250,0.2);background:rgba(255,255,255,0.08)}
-.btn{padding:14px 24px;background:linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);color:#fff;border:none;border-radius:10px;font-weight:600;cursor:pointer;width:100%;font-size:16px;transition:all 0.3s;margin-top:10px;box-shadow:0 4px 15px rgba(139,92,246,0.3)}
-.btn:hover{background:linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);transform:translateY(-3px);box-shadow:0 8px 25px rgba(167,139,250,0.4)}
-.error{color:var(--danger);background:rgba(244,63,94,0.15);padding:16px;border-radius:10px;margin-bottom:24px;border:1px solid rgba(244,63,94,0.3);animation: shake 0.5s ease}
-.links{margin-top:24px;font-size:15px}
-.links a{color:var(--accent);text-decoration:none;font-weight:600}
-.links a:hover{color:var(--text-primary);text-decoration:underline}
-@keyframes fadeInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,#0B1F3A 0%,#0A1930 50%,#050F1F 100%);
+  padding:24px;
+}
+
+/* Card */
+.card{
+  width:100%;
+  max-width:420px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:20px;
+  padding:44px 40px 36px;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 32px 80px rgba(0,0,0,0.5);
+  animation:fadeUp .45s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Icon */
+.shield-wrap{
+  display:flex;
+  justify-content:center;
+  margin-bottom:22px;
+}
+.shield{
+  width:68px;height:68px;
+  border-radius:50%;
+  border:1px solid rgba(212,175,55,0.35);
+  background:rgba(212,175,55,0.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;
+  position:relative;
+}
+
+/* Heading */
+h1{
+  font-family:'Playfair Display',serif;
+  font-size:28px;
+  font-weight:600;
+  color:#fff;
+  text-align:center;
+  margin-bottom:10px;
+}
+.gold-bar{
+  width:40px;height:2px;
+  background:#d4af37;
+  margin:0 auto 16px;
+  border-radius:2px;
+}
+.subtitle{
+  text-align:center;
+  color:rgba(255,255,255,0.45);
+  font-size:13.5px;
+  line-height:1.6;
+  margin-bottom:30px;
+  padding:0 4px;
+}
+
+/* Error */
+.error-box{
+  background:rgba(244,63,94,0.12);
+  border:1px solid rgba(244,63,94,0.3);
+  border-radius:10px;
+  padding:12px 16px;
+  color:#f87171;
+  font-size:13.5px;
+  margin-bottom:20px;
+  text-align:center;
+  animation:shake .4s ease;
+}
+
+/* Form */
+.field-label{
+  display:block;
+  color:rgba(255,255,255,0.75);
+  font-size:13px;
+  font-weight:500;
+  margin-bottom:8px;
+}
+.input-wrap{
+  display:flex;
+  align-items:center;
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px;
+  padding:0 14px;
+  background:rgba(255,255,255,0.05);
+  transition:border-color .2s,box-shadow .2s;
+  margin-bottom:20px;
+}
+.input-wrap:focus-within{
+  border-color:#d4af37;
+  box-shadow:0 0 0 3px rgba(212,175,55,0.12);
+}
+.input-icon{
+  font-size:15px;
+  margin-right:10px;
+  opacity:0.55;
+  flex-shrink:0;
+}
+.input-wrap input{
+  flex:1;
+  background:transparent;
+  border:none;
+  outline:none;
+  color:#fff;
+  font-size:14px;
+  font-family:'Inter',sans-serif;
+  padding:14px 0;
+}
+.input-wrap input::placeholder{color:rgba(255,255,255,0.28);}
+.toggle-btn{
+  background:none;
+  border:none;
+  cursor:pointer;
+  font-size:16px;
+  opacity:0.5;
+  padding:0;
+  line-height:1;
+  transition:opacity .2s;
+  margin-left:8px;
+}
+.toggle-btn:hover{opacity:0.9;}
+
+/* Remember row */
+.row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:24px;
+}
+.remember{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:rgba(255,255,255,0.65);
+  font-size:13px;
+  cursor:pointer;
+}
+.remember input[type=checkbox]{
+  accent-color:#d4af37;
+  width:15px;height:15px;
+  cursor:pointer;
+}
+
+/* Submit */
+.submit-btn{
+  width:100%;
+  padding:15px;
+  border:none;
+  border-radius:10px;
+  background:linear-gradient(135deg,#d4af37 0%,#f0c040 100%);
+  color:#0B1F3A;
+  font-size:15px;
+  font-weight:600;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+  transition:transform .2s,box-shadow .2s,opacity .2s;
+  letter-spacing:.3px;
+  box-shadow:0 6px 24px rgba(212,175,55,0.3);
+  margin-bottom:24px;
+}
+.submit-btn:hover{
+  transform:translateY(-2px) scale(1.01);
+  box-shadow:0 10px 32px rgba(212,175,55,0.45);
+}
+.submit-btn:active{transform:translateY(0) scale(0.99);}
+
+/* Footer */
+.footer-line{
+  border-top:1px solid rgba(255,255,255,0.08);
+  padding-top:18px;
+  text-align:center;
+  color:rgba(255,255,255,0.3);
+  font-size:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+
+/* Animations */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(28px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  25%{transform:translateX(-6px)}
+  75%{transform:translateX(6px)}
+}
 </style>
 </head>
 <body>
-<div class="login-container">
-  <div class="login-icon">🔐</div>
-  <h1>Welcome to CFA Level 1 Quiz</h1>
-  <p>Sign in to access your CFA Level 1 Quiz Platform</p>
-  
-  {% if error %}
-  <div class="error {% if 'Another user' in error %}single-user{% endif %}">
-    <div>{{ error }}</div>
+
+<div class="card">
+
+  <!-- Shield icon -->
+  <div class="shield-wrap">
+    <div class="shield">🔒</div>
   </div>
+
+  <!-- Heading -->
+  <h1>Welcome Back</h1>
+  <div class="gold-bar"></div>
+  <p class="subtitle">Sign in to access your CFA Level I preparation platform and continue your journey towards success.</p>
+
+  <!-- Error -->
+  {% if error %}
+  <div class="error-box">{{ error }}</div>
   {% endif %}
-  
+
+  <!-- Form -->
   <form method="POST">
-    <div class="form-group">
-      <label for="user_id">User ID</label>
-      <input type="text" id="user_id" name="user_id" required placeholder="Enter your user ID">
+
+    <!-- User ID -->
+    <label class="field-label" for="user_id">User ID</label>
+    <div class="input-wrap">
+      <span class="input-icon">👤</span>
+      <input type="text" id="user_id" name="user_id" placeholder="Enter your user ID" required autocomplete="username"/>
     </div>
-    <div class="form-group">
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" required placeholder="Enter your password">
+
+    <!-- Password -->
+    <label class="field-label" for="password">Password</label>
+    <div class="input-wrap">
+      <span class="input-icon">🔐</span>
+      <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password"/>
+      <button type="button" class="toggle-btn" onclick="togglePassword()" title="Show/hide password">👁️</button>
     </div>
-    <button type="submit" class="btn">Sign In</button>
+
+    <!-- Remember me -->
+    <div class="row">
+      <label class="remember">
+        <input type="checkbox" name="remember"/> Remember me
+      </label>
+    </div>
+
+    <!-- Submit -->
+    <button type="submit" class="submit-btn">Access Dashboard &nbsp;→</button>
+
   </form>
+
+  <!-- Footer -->
+  <div class="footer-line">
+    🔐 &nbsp;Secure Login &nbsp;|&nbsp; SSL Encrypted Connection
+  </div>
+
 </div>
 
 <style id="skeleton-style">
@@ -2776,7 +2985,7 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
   position:fixed;
   inset:0;
   z-index:9999;
-  background:var(--bg-primary,#0f0c29);
+  background:#0B1F3A;
   padding:24px;
   overflow:hidden;
   pointer-events:none;
@@ -2817,39 +3026,29 @@ body{margin:0;font-family:'Inter','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;ba
 </div>
 
 <script>
+function togglePassword(){
+  var p = document.getElementById('password');
+  p.type = p.type === 'password' ? 'text' : 'password';
+}
+
 (function(){
   var sk = document.getElementById('page-skeleton');
   if(!sk) return;
-
-  // Show skeleton immediately on any navigation click
-  function showSkeleton(){
-    sk.classList.add('active');
-  }
-
-  // Intercept all <a> tags that navigate away
+  function showSkeleton(){ sk.classList.add('active'); }
   document.addEventListener('click', function(e){
     var a = e.target.closest('a[href]');
     if(!a) return;
     var href = a.getAttribute('href');
-    // Skip: anchors, JS links, external, logout (instant), api calls
     if(!href || href.startsWith('#') || href.startsWith('javascript')
        || href.startsWith('http') || href.includes('/api/')
        || href === '/logout' || a.target === '_blank') return;
     showSkeleton();
   });
-
-  // Intercept form submits (login, etc.)
   document.addEventListener('submit', function(e){
-    var form = e.target;
-    // Only show on forms that do a full-page POST (not AJAX forms)
-    if(form.getAttribute('data-ajax') === 'true') return;
+    if(e.target.getAttribute('data-ajax') === 'true') return;
     showSkeleton();
   });
-
-  // Hide skeleton when page becomes visible (back/forward navigation)
-  window.addEventListener('pageshow', function(e){
-    sk.classList.remove('active');
-  });
+  window.addEventListener('pageshow', function(){ sk.classList.remove('active'); });
 })();
 </script>
 </body>
