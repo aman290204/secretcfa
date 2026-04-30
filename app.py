@@ -2298,6 +2298,15 @@ def save_attempt():
             if 'history' in session:
                 session.pop('history')
                 
+            # Invalidate attempts + stats cache so /mocks and /my-scores reflect new result
+            try:
+                _r = db.get_redis()
+                if _r:
+                    _r.delete(f'cache:attempts:{user_id}')
+                    _r.delete(f'cache:stats:{user_id}')
+            except Exception:
+                pass
+
             return jsonify({"status": "success", "attempt_id": attempt_id})
         else:
             return jsonify({"status": "error", "message": "Failed to store attempt"}), 500
@@ -4489,8 +4498,26 @@ def mock_dashboard():
         except Exception:
             pass
 
-    # attempts needed only for per-mock completion status
-    attempts = db.get_user_quiz_attempts(user_id, limit=1000)
+    # PERF: Cache attempts for 2 minutes — eliminates 1000-record Redis scan on every /mocks load
+    # Invalidated immediately when a quiz is completed (see store_attempt route)
+    ATTEMPTS_CACHE_KEY = f'cache:attempts:{user_id}'
+    attempts = None
+    try:
+        _r = db.get_redis()
+        if _r:
+            raw = _r.get(ATTEMPTS_CACHE_KEY)
+            if raw:
+                attempts = json.loads(raw)
+    except Exception:
+        pass
+    if attempts is None:
+        attempts = db.get_user_quiz_attempts(user_id, limit=1000)
+        try:
+            _r = db.get_redis()
+            if _r:
+                _r.setex(ATTEMPTS_CACHE_KEY, 120, json.dumps(attempts))
+        except Exception:
+            pass
 
     # PERF: Cache mock file metadata in Redis for 10 minutes
     # Mock JSON files are large — parsing all on every /mocks load is slow
