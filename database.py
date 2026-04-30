@@ -42,6 +42,38 @@ except Exception as e:
     redis_client = None
 
 
+def get_redis():
+    """Return a live Redis client, reconnecting if the socket is dead.
+
+    Gunicorn forks worker processes from the master. The forked process
+    inherits the parent's Redis socket, which becomes stale/broken.
+    Calling ping() detects a dead connection and creates a fresh client.
+    All cache read/write paths use this instead of redis_client directly.
+    """
+    global redis_client
+    try:
+        if redis_client is not None:
+            redis_client.ping()   # cheap socket check
+            return redis_client
+    except Exception:
+        pass  # dead socket — fall through and reconnect
+    try:
+        redis_client = redis.from_url(
+            REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5
+        )
+        redis_client.ping()
+        print("✅ Redis reconnected successfully")
+        return redis_client
+    except Exception as e:
+        print(f"⚠️  Redis reconnect failed: {e}")
+        redis_client = None
+        return None
+
+
+
 def init_db():
     """
     Initialize Redis connection (already done on import).

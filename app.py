@@ -295,8 +295,9 @@ def login_required(f):
         # 2 & 4 combined: Pipeline user fetch + session check into ONE Redis round-trip
         user_raw, session_raw = None, None
         try:
-            if db.redis_client:
-                pipe = db.redis_client.pipeline()
+            _r = db.get_redis()
+            if _r:
+                pipe = _r.pipeline()
                 pipe.get(f'user:{user_id}')
                 pipe.get(f'session:{user_id}:{session_token}')
                 user_raw, session_raw = pipe.execute()
@@ -2020,8 +2021,9 @@ def menu():
     MENU_CACHE_TTL = 600  # 10 minutes
     cached_files = None
     try:
-        if db.redis_client:
-            raw = db.redis_client.get(MENU_CACHE_KEY)
+        _r = db.get_redis()
+        if _r:
+            raw = _r.get(MENU_CACHE_KEY)
             if raw:
                 cached_files = json.loads(raw)
     except Exception:
@@ -2066,8 +2068,9 @@ def menu():
 
         # Store in Redis cache
         try:
-            if db.redis_client:
-                db.redis_client.setex(MENU_CACHE_KEY, MENU_CACHE_TTL, json.dumps(files))
+            _r = db.get_redis()
+            if _r:
+                _r.setex(MENU_CACHE_KEY, MENU_CACHE_TTL, json.dumps(files))
         except Exception:
             pass  # Cache write failure is non-fatal
     
@@ -2321,19 +2324,20 @@ def clear_my_attempts():
             return jsonify({"status": "error", "message": "Not logged in"}), 401
         
         # Get all attempt IDs for this user
-        if db.redis_client:
-            attempt_ids = db.redis_client.zrange(f'user_attempts:{user_id}', 0, -1)
+        _r = db.get_redis()
+        if _r:
+            attempt_ids = _r.zrange(f'user_attempts:{user_id}', 0, -1)
             deleted_count = 0
             
             # Delete each attempt
             for attempt_id in attempt_ids:
                 if isinstance(attempt_id, bytes):
                     attempt_id = attempt_id.decode('utf-8')
-                db.redis_client.delete(f'quiz_attempt:{user_id}:{attempt_id}')
+                _r.delete(f'quiz_attempt:{user_id}:{attempt_id}')
                 deleted_count += 1
             
             # Clear the user's attempts list
-            db.redis_client.delete(f'user_attempts:{user_id}')
+            _r.delete(f'user_attempts:{user_id}')
             
             return jsonify({
                 "status": "success",
@@ -4298,34 +4302,16 @@ def update_exam_date():
 def practice_dashboard():
     user_id = session.get('user_id')
 
-    # PERF: Cache per-user stats for 2 minutes to avoid 1000-record Redis query on every visit
-    STATS_CACHE_KEY = f'cache:stats:{user_id}'
-    stats_raw = None
-    try:
-        if db.redis_client:
-            stats_raw = db.redis_client.get(STATS_CACHE_KEY)
-    except Exception:
-        pass
-    if stats_raw:
-        stats = json.loads(stats_raw)
-    else:
-        stats = db.get_user_quiz_stats(user_id)
-        try:
-            if db.redis_client:
-                db.redis_client.setex(STATS_CACHE_KEY, 120, json.dumps(stats))
-        except Exception:
-            pass
+    # NOTE: stats, attempts, paused_attempts removed — all were dead code.
+    # PRACTICE_TEMPLATE derives all values from snapshots, not from these fetches.
 
-    attempts = db.get_user_quiz_attempts(user_id, limit=1000)
-    paused_attempts = db.get_all_paused_attempts(user_id)
-
-    # PERF: Cache module file list (question counts) in Redis for 10 minutes
-    # Avoids parsing all 93+ Module JSON files on every /practice load
+    # PERF: Cache module file list in Redis for 10 minutes
     MODULE_FILES_CACHE_KEY = 'cache:module_files'
     all_files_raw = None
     try:
-        if db.redis_client:
-            all_files_raw = db.redis_client.get(MODULE_FILES_CACHE_KEY)
+        _r = db.get_redis()
+        if _r:
+            all_files_raw = _r.get(MODULE_FILES_CACHE_KEY)
     except Exception:
         pass
 
@@ -4348,8 +4334,9 @@ def practice_dashboard():
                         })
                 except: continue
         try:
-            if db.redis_client:
-                db.redis_client.setex(MODULE_FILES_CACHE_KEY, 600, json.dumps(all_files))
+            _r = db.get_redis()
+            if _r:
+                _r.setex(MODULE_FILES_CACHE_KEY, 600, json.dumps(all_files))
         except Exception:
             pass
 
