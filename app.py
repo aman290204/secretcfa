@@ -1752,103 +1752,66 @@ function toggleSidebar() {
 </script>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton" style="background:#0f1419;">
+<div style="width:100%;display:flex;flex-direction:column;gap:16px;">
+  <!-- topbar -->
+  <div class="sk" style="height:54px;border-radius:0;width:100%"></div>
+  <div style="max-width:900px;margin:0 auto;width:100%;padding:0 24px;display:flex;flex-direction:column;gap:16px">
+    <!-- q-header: question num + progress -->
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="sk" style="height:22px;width:100px;border-radius:6px"></div>
+      <div class="sk" style="height:22px;width:180px;border-radius:6px"></div>
+    </div>
+    <!-- question text block -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:12px">
+      <div class="sk" style="height:16px;width:100%;border-radius:5px"></div>
+      <div class="sk" style="height:16px;width:92%;border-radius:5px"></div>
+      <div class="sk" style="height:16px;width:80%;border-radius:5px"></div>
+      <div class="sk" style="height:16px;width:60%;border-radius:5px"></div>
+    </div>
+    <!-- 4 answer options -->
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <!-- nav buttons row -->
+    <div style="display:flex;gap:12px;justify-content:flex-end">
+      <div class="sk" style="height:40px;width:100px;border-radius:8px"></div>
+      <div class="sk" style="height:40px;width:100px;border-radius:8px"></div>
+    </div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -2998,103 +2961,50 @@ h1{
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton" style="background:linear-gradient(135deg,#0B1F3A,#050F1F);">
+<div style="width:100%;display:flex;align-items:center;justify-content:center;min-height:100vh;">
+  <div style="width:420px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:44px 40px;display:flex;flex-direction:column;gap:18px;align-items:center">
+    <div class="sk" style="width:68px;height:68px;border-radius:50%"></div>
+    <div class="sk" style="height:28px;width:160px;border-radius:8px"></div>
+    <div class="sk" style="height:2px;width:40px;border-radius:2px"></div>
+    <div class="sk" style="height:13px;width:100%;border-radius:4px"></div>
+    <div class="sk" style="height:13px;width:80%;border-radius:4px"></div>
+    <div class="sk" style="height:52px;width:100%;border-radius:10px;margin-top:8px"></div>
+    <div class="sk" style="height:52px;width:100%;border-radius:10px"></div>
+    <div class="sk" style="height:48px;width:100%;border-radius:10px;margin-top:6px"></div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -3336,103 +3246,77 @@ document.querySelector('.restore-link').addEventListener('click', function(e) {
 </script>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <!-- header bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div class="sk" style="height:32px;width:200px;border-radius:8px"></div>
+    <div class="sk" style="height:28px;width:120px;border-radius:6px"></div>
+  </div>
+  <!-- completion progress bar -->
+  <div class="sk" style="height:14px;border-radius:7px;width:100%"></div>
+  <!-- 4 metric boxes -->
+  <div style="display:flex;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+    <div class="sk" style="flex:1.2;height:80px;border-radius:0;border-right:1px solid rgba(255,255,255,.08)"></div>
+    <div class="sk" style="flex:1;height:80px;border-radius:0;border-right:1px solid rgba(255,255,255,.08)"></div>
+    <div class="sk" style="flex:1;height:80px;border-radius:0;border-right:1px solid rgba(255,255,255,.08)"></div>
+    <div class="sk" style="flex:1;height:80px;border-radius:0"></div>
+  </div>
+  <!-- sub-tab row -->
+  <div style="display:flex;gap:20px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div class="sk" style="height:16px;width:80px;border-radius:4px"></div>
+    <div class="sk" style="height:16px;width:100px;border-radius:4px"></div>
+    <div class="sk" style="height:16px;width:80px;border-radius:4px"></div>
+  </div>
+  <!-- module list rows -->
+  <div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+    <div class="sk" style="height:56px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:56px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:56px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:56px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:56px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:56px;border-radius:0"></div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -3628,103 +3512,86 @@ body.sidebar-collapsed .main-content{margin-left:0}
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <!-- header row: title + tabs -->
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:10px">
+    <div class="sk" style="height:28px;width:160px;border-radius:8px"></div>
+    <div style="display:flex;gap:24px">
+      <div class="sk" style="height:18px;width:80px;border-radius:4px"></div>
+      <div class="sk" style="height:18px;width:110px;border-radius:4px"></div>
+      <div class="sk" style="height:18px;width:60px;border-radius:4px"></div>
+    </div>
+  </div>
+  <!-- completion bar -->
+  <div class="sk" style="height:14px;border-radius:7px;width:100%"></div>
+  <!-- 4 metric boxes -->
+  <div style="display:flex;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+    <div class="sk" style="flex:1.2;height:90px;border-radius:0;border-right:1px solid rgba(255,255,255,.08)"></div>
+    <div class="sk" style="flex:1;height:90px;border-radius:0;border-right:1px solid rgba(255,255,255,.08)"></div>
+    <div class="sk" style="flex:1;height:90px;border-radius:0;border-right:1px solid rgba(255,255,255,.08)"></div>
+    <div class="sk" style="flex:1;height:90px;border-radius:0"></div>
+  </div>
+  <!-- sub-tabs -->
+  <div style="display:flex;gap:20px;padding-left:10px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div class="sk" style="height:16px;width:60px;border-radius:4px"></div>
+    <div class="sk" style="height:16px;width:100px;border-radius:4px"></div>
+  </div>
+  <!-- table header -->
+  <div style="display:flex;padding:0 20px;gap:20px">
+    <div class="sk" style="height:14px;flex:2;border-radius:4px"></div>
+    <div class="sk" style="height:14px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:14px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:14px;flex:1;border-radius:4px"></div>
+  </div>
+  <!-- table rows -->
+  <div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+    <div class="sk" style="height:52px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:52px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:52px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:52px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:52px;border-radius:0"></div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -4176,103 +4043,94 @@ window.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <!-- top header: title + buttons -->
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div class="sk" style="height:30px;width:280px;border-radius:8px"></div>
+    <div style="display:flex;gap:10px">
+      <div class="sk" style="height:34px;width:90px;border-radius:6px"></div>
+      <div class="sk" style="height:34px;width:80px;border-radius:6px"></div>
+      <div class="sk" style="height:34px;width:80px;border-radius:6px"></div>
+    </div>
+  </div>
+  <!-- dashboard-top: countdown box + 2 progress cards -->
+  <div style="display:flex;gap:16px">
+    <div class="sk" style="width:120px;height:100px;border-radius:12px;flex-shrink:0"></div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+      <div class="sk" style="height:44px;border-radius:10px;width:100%"></div>
+      <div class="sk" style="height:44px;border-radius:10px;width:100%"></div>
+    </div>
+  </div>
+  <!-- 3 score ring circles -->
+  <div style="display:flex;gap:32px;justify-content:center;padding:10px 0">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="sk" style="width:14px;height:14px;border-radius:4px"></div>
+      <div class="sk" style="width:140px;height:140px;border-radius:50%"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="sk" style="width:14px;height:14px;border-radius:4px"></div>
+      <div class="sk" style="width:140px;height:140px;border-radius:50%"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div class="sk" style="width:14px;height:14px;border-radius:4px"></div>
+      <div class="sk" style="width:140px;height:140px;border-radius:50%"></div>
+    </div>
+  </div>
+  <!-- action grid: 2 task cards -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div class="sk" style="height:90px;border-radius:12px"></div>
+    <div class="sk" style="height:90px;border-radius:12px"></div>
+  </div>
+  <!-- strengths section: title + rows -->
+  <div style="border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:12px">
+    <div class="sk" style="height:22px;width:220px;border-radius:6px"></div>
+    <div class="sk" style="height:14px;width:380px;border-radius:4px"></div>
+    <div class="sk" style="height:40px;border-radius:6px;width:100%"></div>
+    <div class="sk" style="height:40px;border-radius:6px;width:100%"></div>
+    <div class="sk" style="height:40px;border-radius:6px;width:100%"></div>
+    <div class="sk" style="height:40px;border-radius:6px;width:100%"></div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -4297,103 +4155,52 @@ body{font-family:sans-serif;background:#121212;color:#fff;padding:20px}
 {% for attempt in history %}<div class="card"><h3>{{ attempt.quiz_name }}</h3><p>Score: {{ attempt.score_percent }}% | Date: {{ attempt.timestamp }}</p><a href="/view-attempt/{{ attempt.id }}" class="btn">View Details</a></div>{% endfor %}
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -4408,103 +4215,52 @@ RECENTLY_VIEWED_TEMPLATE = """
 {% for item in recently_viewed %}<div><h3>{{ item.name }}</h3><a href="/{{ item.name }}" style="color:#a78bfa">Take Again</a></div>{% endfor %}
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -4551,103 +4307,52 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -4666,103 +4371,52 @@ REMOVE_USER_TEMPLATE = """
 </form>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -4831,103 +4485,52 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -4989,103 +4592,52 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -5179,103 +4731,52 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:linear-
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -5381,103 +4882,74 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <!-- header -->
+  <div class="sk" style="height:30px;width:180px;border-radius:8px"></div>
+  <!-- 4 stat cards -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+  </div>
+  <!-- table header -->
+  <div style="display:flex;padding:10px 20px;gap:20px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div class="sk" style="height:13px;flex:2;border-radius:4px"></div>
+    <div class="sk" style="height:13px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:13px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:13px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:13px;width:60px;border-radius:4px"></div>
+  </div>
+  <!-- attempt rows -->
+  <div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden">
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0"></div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -5493,103 +4965,74 @@ ATTEMPT_DETAILS_TEMPLATE = """
 <a href="/my-scores" style="color:#a78bfa">Back to Scores</a>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <!-- header -->
+  <div class="sk" style="height:30px;width:180px;border-radius:8px"></div>
+  <!-- 4 stat cards -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+    <div class="sk" style="height:80px;border-radius:10px"></div>
+  </div>
+  <!-- table header -->
+  <div style="display:flex;padding:10px 20px;gap:20px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <div class="sk" style="height:13px;flex:2;border-radius:4px"></div>
+    <div class="sk" style="height:13px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:13px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:13px;flex:1;border-radius:4px"></div>
+    <div class="sk" style="height:13px;width:60px;border-radius:4px"></div>
+  </div>
+  <!-- attempt rows -->
+  <div style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:8px;overflow:hidden">
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0;border-bottom:1px solid rgba(255,255,255,.06)"></div>
+    <div class="sk" style="height:54px;border-radius:0"></div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -5724,103 +5167,66 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton" style="background:#0f1419;">
+<div style="width:100%;display:flex;flex-direction:column;gap:16px;">
+  <!-- topbar -->
+  <div class="sk" style="height:54px;border-radius:0;width:100%"></div>
+  <div style="max-width:900px;margin:0 auto;width:100%;padding:0 24px;display:flex;flex-direction:column;gap:16px">
+    <!-- q-header: question num + progress -->
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="sk" style="height:22px;width:100px;border-radius:6px"></div>
+      <div class="sk" style="height:22px;width:180px;border-radius:6px"></div>
+    </div>
+    <!-- question text block -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:12px">
+      <div class="sk" style="height:16px;width:100%;border-radius:5px"></div>
+      <div class="sk" style="height:16px;width:92%;border-radius:5px"></div>
+      <div class="sk" style="height:16px;width:80%;border-radius:5px"></div>
+      <div class="sk" style="height:16px;width:60%;border-radius:5px"></div>
+    </div>
+    <!-- 4 answer options -->
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <div class="sk" style="height:52px;border-radius:10px;width:100%"></div>
+    <!-- nav buttons row -->
+    <div style="display:flex;gap:12px;justify-content:flex-end">
+      <div class="sk" style="height:40px;width:100px;border-radius:8px"></div>
+      <div class="sk" style="height:40px;width:100px;border-radius:8px"></div>
+    </div>
+  </div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -5891,103 +5297,52 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
@@ -6084,103 +5439,52 @@ body{margin:0;font-family:'Inter','Segoe UI',Arial,sans-serif;background:var(--b
 </div>
 
 <style id="skeleton-style">
-#page-skeleton{
-  display:none;position:fixed;inset:0;z-index:9999;
-  pointer-events:none;overflow:hidden;
-}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
 #page-skeleton.active{display:flex;}
-.sk{
-  background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.05) 75%);
-  background-size:400% 100%;
-  border-radius:8px;
-  animation:sk-sh 1.3s ease infinite;
-}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* Sidebar ghost */
-.sk-sidebar{width:210px;min-width:210px;height:100vh;background:rgba(10,37,64,.95);border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+/* sidebar ghost */
+.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
 .sk-logo{height:36px;border-radius:8px;}
-.sk-nav-item{height:38px;border-radius:8px;}
-/* Main content area */
-.sk-main{flex:1;padding:28px;display:flex;flex-direction:column;gap:18px;background:var(--bg-primary,#0d1b2e);}
-/* Shared shapes */
-.sk-title{height:34px;width:38%;border-radius:8px;}
-.sk-subtitle{height:20px;width:55%;border-radius:6px;}
-.sk-pill{height:26px;width:90px;border-radius:20px;}
-/* Menu = 3-col card grid */
-.sk-search{height:44px;border-radius:10px;margin-bottom:6px;}
-.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-.sk-card{height:110px;border-radius:12px;}
-/* Practice = vertical list rows */
-.sk-chips{display:flex;gap:12px;}
-.sk-chip{height:72px;flex:1;border-radius:12px;}
-.sk-list{display:flex;flex-direction:column;gap:10px;}
-.sk-row{height:68px;border-radius:10px;}
-/* Mocks = 2-col grid of exam cards */
-.sk-mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
-.sk-mock-card{height:160px;border-radius:14px;}
-/* My-scores = stat row + table */
-.sk-stat-row{display:flex;gap:14px;}
-.sk-stat{height:80px;flex:1;border-radius:12px;}
-.sk-table-row{height:52px;border-radius:8px;}
-/* Quiz = topbar + question card + 4 options */
-.sk-quiz-wrap{width:100%;display:flex;flex-direction:column;gap:16px;}
-.sk-topbar-full{height:54px;border-radius:0;}
-.sk-q-card{height:160px;border-radius:14px;}
-.sk-option{height:50px;border-radius:10px;}
+.sk-nav{height:36px;border-radius:8px;}
+/* main area */
+.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
 
-<div id="page-skeleton"></div>
+<div id="page-skeleton">
+<div class="sk-side">
+  <div class="sk sk-logo"></div>
+  <div class="sk sk-nav" style="margin-top:8px"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+  <div class="sk sk-nav"></div>
+</div>
+<div class="sk-main">
+  <div class="sk" style="height:30px;width:240px;border-radius:8px"></div>
+  <div class="sk" style="height:200px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+  <div class="sk" style="height:60px;width:100%;border-radius:8px"></div>
+</div>
+</div>
 
 <script id="skeleton-js">
 (function(){
-  /* ── Skeleton templates keyed by destination path ── */
-  var SKELS = {
-    '/menu': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-search"></div><div class="sk-grid"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div></div>',
-    '/practice': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-chips"><div class="sk sk-chip"></div><div class="sk sk-chip"></div><div class="sk sk-chip"></div></div><div class="sk-list"><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div><div class="sk sk-row"></div></div></div>',
-    '/mocks': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk sk-subtitle"></div><div class="sk-mock-grid"><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div><div class="sk sk-mock-card"></div></div></div>',
-    '/my-scores': '<div class="sk-sidebar"><div class="sk sk-logo"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div><div class="sk sk-nav-item"></div></div><div class="sk-main"><div class="sk sk-title"></div><div class="sk-stat-row"><div class="sk sk-stat"></div><div class="sk sk-stat"></div><div class="sk sk-stat"></div></div><div class="sk-list"><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div><div class="sk sk-table-row"></div></div></div>',
-    '__quiz__': '<div class="sk-quiz-wrap"><div class="sk sk-topbar-full"></div><div style="padding:24px;display:flex;flex-direction:column;gap:14px;"><div class="sk sk-title"></div><div class="sk sk-q-card"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div><div class="sk sk-option"></div></div></div>'
-  };
-
-  var sk = document.getElementById('page-skeleton');
-  if(!sk) return;
-
-  function isQuizPath(href){
-    return href && !href.startsWith('/menu') && !href.startsWith('/practice') &&
-           !href.startsWith('/mocks') && !href.startsWith('/my-scores') &&
-           !href.startsWith('/login') && !href.startsWith('/logout') &&
-           !href.startsWith('/all') && !href.startsWith('/api') &&
-           !href.startsWith('/review') && !href.startsWith('/manage') &&
-           href.startsWith('/');
-  }
-
-  function showFor(href){
-    var key = SKELS[href] ? href : (isQuizPath(href) ? '__quiz__' : null);
-    if(!key) return;
-    sk.innerHTML = SKELS[key];
-    sk.style.background = '#0d1b2e';
-    sk.classList.add('active');
-  }
-
-  document.addEventListener('click', function(e){
-    var a = e.target.closest('a[href]');
-    if(!a) return;
-    var href = a.getAttribute('href');
-    if(!href || href.startsWith('#') || href.startsWith('javascript') ||
-       href.startsWith('http') || href === '/logout' || a.target === '_blank') return;
-    showFor(href);
+  var sk=document.getElementById('page-skeleton');
+  if(!sk)return;
+  function show(){sk.classList.add('active');}
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a)return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('javascript')||h.startsWith('http')||h==='/logout'||a.target==='_blank')return;
+    show();
   });
-
-  document.addEventListener('submit', function(e){
-    if(e.target.getAttribute('data-ajax') === 'true') return;
-    /* Login submit -> going to /menu */
-    showFor('/menu');
+  document.addEventListener('submit',function(e){
+    if(e.target.getAttribute('data-ajax')==='true')return;
+    show();
   });
-
-  window.addEventListener('pageshow', function(){
-    sk.classList.remove('active');
-    sk.innerHTML = '';
-  });
+  window.addEventListener('pageshow',function(){sk.classList.remove('active');});
 })();
 </script>
 </body>
