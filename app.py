@@ -3028,7 +3028,7 @@ body{
 document.getElementById('togglePw').addEventListener('click',function(){
   var inp=document.getElementById('password');
   inp.type=inp.type==='password'?'text':'password';
-  this.textContent=inp.type==='password'?'\uD83D\uDC41':'\uD83D\uDE48';
+  this.innerHTML=inp.type==='password'?'&#128065;':'&#128065;&#65039;';
 });
 
 /* Remember me */
