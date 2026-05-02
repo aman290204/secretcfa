@@ -2702,221 +2702,191 @@ LOGIN_TEMPLATE = """
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Login - SecretCFA</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@600&display=swap" rel="stylesheet"/>
+<title>Login – SecretCFA</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{
   font-family:'Inter',sans-serif;
   min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:linear-gradient(135deg,#0B1F3A 0%,#0A1930 50%,#050F1F 100%);
-  padding:24px;
-}
-
-/* Card */
-.card{
-  width:100%;
-  max-width:420px;
-  background:rgba(255,255,255,0.04);
-  border:1px solid rgba(255,255,255,0.09);
-  border-radius:20px;
-  padding:44px 40px 36px;
-  backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
-  box-shadow:0 32px 80px rgba(0,0,0,0.5);
-  animation:fadeUp .45s cubic-bezier(.22,1,.36,1) both;
-}
-
-/* Icon */
-.shield-wrap{
-  display:flex;
-  justify-content:center;
-  margin-bottom:22px;
-}
-.shield{
-  width:68px;height:68px;
-  border-radius:50%;
-  border:1px solid rgba(212,175,55,0.35);
-  background:rgba(212,175,55,0.1);
   display:flex;align-items:center;justify-content:center;
-  font-size:30px;
-  position:relative;
+  background:linear-gradient(145deg,#060e1f 0%,#0a1628 30%,#0c1e40 60%,#0d2455 100%);
+  position:relative;overflow:hidden;
 }
+
+/* ── Orbs ── */
+.orb{position:absolute;border-radius:50%;pointer-events:none}
+.orb1{width:700px;height:700px;top:-220px;right:-180px;
+  background:radial-gradient(circle at 40% 40%,rgba(245,197,24,.18) 0%,rgba(245,197,24,.06) 45%,transparent 70%);
+  animation:floatA 18s ease-in-out infinite;filter:blur(2px)}
+.orb2{width:600px;height:600px;bottom:-200px;left:-150px;
+  background:radial-gradient(circle at 60% 60%,rgba(99,102,241,.22) 0%,rgba(59,130,246,.08) 50%,transparent 70%);
+  animation:floatB 22s ease-in-out infinite;filter:blur(2px)}
+.orb3{width:380px;height:380px;top:35%;right:8%;
+  background:radial-gradient(circle,rgba(20,184,166,.14) 0%,transparent 70%);
+  animation:floatC 14s ease-in-out infinite}
+.orb4{width:220px;height:220px;top:20%;left:15%;
+  background:radial-gradient(circle,rgba(245,197,24,.12) 0%,transparent 70%);
+  animation:floatA 11s ease-in-out infinite reverse}
+
+/* Rotating rings */
+.ring{position:absolute;border-radius:50%;pointer-events:none}
+.ring1{width:320px;height:320px;top:40px;right:80px;
+  border:1px solid rgba(245,197,24,.08);
+  animation:rotateSlow 40s linear infinite}
+.ring2{width:220px;height:220px;top:90px;right:130px;
+  border:1px dashed rgba(255,255,255,.05);
+  animation:rotateSlow 28s linear infinite reverse}
+
+/* Grid */
+.grid-lines{position:absolute;inset:0;opacity:.03;pointer-events:none;
+  background-image:repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 80px)}
+
+/* Scan line */
+.scanline{position:absolute;left:0;right:0;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,rgba(245,197,24,.3) 30%,rgba(245,197,24,.5) 50%,rgba(245,197,24,.3) 70%,transparent 100%);
+  animation:scanline 8s ease-in-out infinite;
+  box-shadow:0 0 12px rgba(245,197,24,.4)}
+
+/* ── Animations ── */
+@keyframes floatA{0%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-60px) scale(1.08)}66%{transform:translate(-30px,30px) scale(.95)}100%{transform:translate(0,0) scale(1)}}
+@keyframes floatB{0%{transform:translate(0,0) scale(1)}33%{transform:translate(-50px,40px) scale(1.05)}66%{transform:translate(60px,-30px) scale(.92)}100%{transform:translate(0,0) scale(1)}}
+@keyframes floatC{0%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,60px) scale(1.1)}100%{transform:translate(0,0) scale(1)}}
+@keyframes rotateSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes scanline{0%{opacity:0;top:-4px}10%{opacity:.6}90%{opacity:.4}100%{opacity:0;top:100%}}
+@keyframes cardIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Card ── */
+.card{
+  position:relative;z-index:10;
+  width:100%;max-width:420px;margin:0 16px;
+  padding:40px;border-radius:20px;
+  background:rgba(10,18,40,.72);
+  border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(32px) saturate(1.4);
+  -webkit-backdrop-filter:blur(32px) saturate(1.4);
+  box-shadow:0 40px 80px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.04) inset,0 0 60px rgba(245,197,24,.04);
+  animation:cardIn .7s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* Logo row */
+.logo-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:28px}
+.logo-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#f5c518,#e6a800);
+  box-shadow:0 4px 16px rgba(245,197,24,.35);font-size:20px;flex-shrink:0}
+.logo-text{color:#fff;font-weight:700;font-size:22px;letter-spacing:-.02em}
+.logo-text span{color:#f5c518}
 
 /* Heading */
-h1{
-  font-family:'Playfair Display',serif;
-  font-size:28px;
-  font-weight:600;
-  color:#fff;
-  text-align:center;
-  margin-bottom:10px;
-}
-.gold-bar{
-  width:40px;height:2px;
-  background:#d4af37;
-  margin:0 auto 16px;
-  border-radius:2px;
-}
-.subtitle{
-  text-align:center;
-  color:rgba(255,255,255,0.45);
-  font-size:13.5px;
-  line-height:1.6;
-  margin-bottom:30px;
-  padding:0 4px;
-}
+.heading{text-align:center;margin-bottom:28px}
+.heading h2{color:#fff;font-weight:700;font-size:1.75rem;letter-spacing:-.02em;margin-bottom:6px}
+.heading p{font-size:13px;color:rgba(255,255,255,.42)}
 
-/* Error */
+/* Error box */
 .error-box{
-  background:rgba(244,63,94,0.12);
-  border:1px solid rgba(244,63,94,0.3);
-  border-radius:10px;
-  padding:12px 16px;
-  color:#f87171;
-  font-size:13.5px;
-  margin-bottom:20px;
-  text-align:center;
+  background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.3);
+  border-radius:10px;padding:12px 16px;color:#f87171;
+  font-size:13px;margin-bottom:20px;text-align:center;
   animation:shake .4s ease;
 }
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 
 /* Form */
-.field-label{
-  display:block;
-  color:rgba(255,255,255,0.75);
-  font-size:13px;
-  font-weight:500;
-  margin-bottom:8px;
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13px;font-weight:600;color:rgba(255,255,255,.7);margin-bottom:6px}
+.input-wrap{position:relative}
+.field input[type=text],
+.field input[type=password]{
+  width:100%;padding:13px 16px;border-radius:12px;font-size:13.5px;
+  font-family:'Inter',sans-serif;outline:none;
+  background:rgba(255,255,255,.05);
+  border:1.5px solid rgba(255,255,255,.1);
+  color:#fff;transition:all .2s;
 }
-.input-wrap{
-  display:flex;
-  align-items:center;
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:10px;
-  padding:0 14px;
-  background:rgba(255,255,255,0.05);
-  transition:border-color .2s,box-shadow .2s;
-  margin-bottom:20px;
+.field input::placeholder{color:rgba(255,255,255,.28)}
+.field input:focus{
+  background:rgba(255,255,255,.09);
+  border-color:rgba(245,197,24,.65);
+  box-shadow:0 0 0 3px rgba(245,197,24,.1),0 0 20px rgba(245,197,24,.08);
 }
-.input-wrap:focus-within{
-  border-color:#d4af37;
-  box-shadow:0 0 0 3px rgba(212,175,55,0.12);
+.field input[type=password]{padding-right:44px}
+.toggle-pw{
+  position:absolute;right:13px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;
+  color:rgba(255,255,255,.35);font-size:15px;line-height:1;
+  transition:color .2s;padding:0;
 }
-.input-icon{
-  font-size:15px;
-  margin-right:10px;
-  opacity:0.55;
-  flex-shrink:0;
-}
-.input-wrap input{
-  flex:1;
-  background:transparent;
-  border:none;
-  outline:none;
-  color:#fff;
-  font-size:14px;
-  font-family:'Inter',sans-serif;
-  padding:14px 0;
-}
-.input-wrap input::placeholder{color:rgba(255,255,255,0.28);}
-.toggle-btn{
-  background:none;
-  border:none;
-  cursor:pointer;
-  font-size:16px;
-  opacity:0.5;
-  padding:0;
-  line-height:1;
-  transition:opacity .2s;
-  margin-left:8px;
-}
-.toggle-btn:hover{opacity:0.9;}
+.toggle-pw:hover{color:rgba(255,255,255,.7)}
 
-/* Remember row */
-.row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:24px;
+/* Remember me */
+.remember-row{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer}
+.custom-cb{
+  width:20px;height:20px;border-radius:6px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.15);
+  transition:all .15s;cursor:pointer;user-select:none;
 }
-.remember{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color:rgba(255,255,255,0.65);
-  font-size:13px;
-  cursor:pointer;
+.custom-cb.checked{
+  background:linear-gradient(135deg,#f5c518,#e6a800);
+  border-color:#f5c518;
+  box-shadow:0 0 10px rgba(245,197,24,.3);
 }
-.remember input[type=checkbox]{
-  accent-color:#d4af37;
-  width:15px;height:15px;
-  cursor:pointer;
-}
+.custom-cb svg{display:none}
+.custom-cb.checked svg{display:block}
+.remember-row span{font-size:13px;color:rgba(255,255,255,.5);user-select:none}
 
 /* Submit */
 .submit-btn{
-  width:100%;
-  padding:15px;
-  border:none;
-  border-radius:10px;
-  background:linear-gradient(135deg,#d4af37 0%,#f0c040 100%);
-  color:#0B1F3A;
-  font-size:15px;
-  font-weight:600;
-  font-family:'Inter',sans-serif;
-  cursor:pointer;
-  transition:transform .2s,box-shadow .2s,opacity .2s;
-  letter-spacing:.3px;
-  box-shadow:0 6px 24px rgba(212,175,55,0.3);
-  margin-bottom:24px;
+  width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px;border-radius:12px;border:none;cursor:pointer;
+  font-size:13.5px;font-weight:700;font-family:'Inter',sans-serif;
+  background:linear-gradient(135deg,#f5c518 0%,#e6a800 100%);
+  color:#0a1628;letter-spacing:.01em;
+  box-shadow:0 4px 24px rgba(245,197,24,.35),0 0 0 1px rgba(245,197,24,.2) inset;
+  transition:transform .15s,box-shadow .15s;
 }
-.submit-btn:hover{
-  transform:translateY(-2px) scale(1.01);
-  box-shadow:0 10px 32px rgba(212,175,55,0.45);
-}
-.submit-btn:active{transform:translateY(0) scale(0.99);}
+.submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(245,197,24,.45)}
+.submit-btn:active{transform:scale(.98)}
+.submit-btn svg{width:16px;height:16px}
 
 /* Footer */
-.footer-line{
-  border-top:1px solid rgba(255,255,255,0.08);
-  padding-top:18px;
-  text-align:center;
-  color:rgba(255,255,255,0.3);
-  font-size:12px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
+.card-footer{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  margin-top:24px;padding-top:20px;
+  border-top:1px solid rgba(255,255,255,.06);
 }
-
-/* Animations */
-@keyframes fadeUp{
-  from{opacity:0;transform:translateY(28px)}
-  to{opacity:1;transform:translateY(0)}
-}
-@keyframes shake{
-  0%,100%{transform:translateX(0)}
-  25%{transform:translateX(-6px)}
-  75%{transform:translateX(6px)}
-}
+.badge{display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.3)}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,.6);flex-shrink:0}
+.divider{width:1px;height:12px;background:rgba(255,255,255,.08)}
 </style>
 </head>
 <body>
 
+<!-- Background layers -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+<div class="orb orb4"></div>
+<div class="ring ring1"></div>
+<div class="ring ring2"></div>
+<div class="grid-lines"></div>
+<canvas id="constellation" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1"></canvas>
+<div class="scanline"></div>
+
+<!-- Card -->
 <div class="card">
 
-  <!-- Shield icon -->
-  <div class="shield-wrap">
-    <div class="shield">🔒</div>
+  <!-- Logo -->
+  <div class="logo-row">
+    <div class="logo-icon">🔒</div>
+    <div class="logo-text">Secret<span>CFA</span></div>
   </div>
 
   <!-- Heading -->
-  <h1>Welcome Back</h1>
-  <div class="gold-bar"></div>
-  <p class="subtitle">Sign in to access your CFA Level I preparation platform and continue your journey towards success.</p>
+  <div class="heading">
+    <h2>Welcome back</h2>
+    <p>Sign in to access your CFA Level I preparation platform</p>
+  </div>
 
   <!-- Error -->
   {% if error %}
@@ -2926,68 +2896,167 @@ h1{
   <!-- Form -->
   <form method="POST">
 
-    <!-- User ID -->
-    <label class="field-label" for="user_id">User ID</label>
-    <div class="input-wrap">
-      <span class="input-icon">👤</span>
+    <div class="field">
+      <label for="user_id">User ID</label>
       <input type="text" id="user_id" name="user_id" placeholder="Enter your user ID" required autocomplete="username"/>
     </div>
 
-    <!-- Password -->
-    <label class="field-label" for="password">Password</label>
-    <div class="input-wrap">
-      <span class="input-icon">🔐</span>
-      <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password"/>
-      <button type="button" class="toggle-btn" onclick="togglePassword()" title="Show/hide password">👁️</button>
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="input-wrap">
+        <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password"/>
+        <button type="button" class="toggle-pw" id="togglePw" title="Show/hide password">👁</button>
+      </div>
     </div>
 
     <!-- Remember me -->
-    <div class="row">
-      <label class="remember">
-        <input type="checkbox" name="remember"/> Remember me
-      </label>
+    <div class="remember-row" onclick="toggleRemember()">
+      <div class="custom-cb" id="cb">
+        <svg viewBox="0 0 12 12" fill="none" width="12" height="12">
+          <path d="M2 6l3 3 5-5" stroke="#0a1628" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span>Keep me signed in for 30 days</span>
+      <input type="checkbox" id="remember" name="remember" style="display:none"/>
     </div>
 
-    <!-- Submit -->
-    <button type="submit" class="submit-btn">Access Dashboard &nbsp;→</button>
+    <button type="submit" class="submit-btn">
+      Access Dashboard
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
 
   </form>
 
-  <!-- Footer -->
-  <div class="footer-line">
-    🔐 &nbsp;Secure Login &nbsp;|&nbsp; SSL Encrypted Connection
+  <!-- Footer badges -->
+  <div class="card-footer">
+    <div class="badge"><div class="dot"></div> Secure Login</div>
+    <div class="divider"></div>
+    <div class="badge">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      SSL Encrypted
+    </div>
+    <div class="divider"></div>
+    <div class="badge">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+      CFA Institute
+    </div>
   </div>
 
 </div>
 
+<!-- Constellation canvas -->
+<script>
+(function(){
+  var canvas = document.getElementById('constellation');
+  var ctx = canvas.getContext('2d');
+  var animId;
+
+  function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  var COUNT = 90;
+  var stars = [];
+  for(var i=0;i<COUNT;i++){
+    stars.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      vx: (Math.random()-.5)*.35,
+      vy: (Math.random()-.5)*.35,
+      r: Math.random()*1.5+.5,
+      alpha: Math.random()*.5+.3,
+      pulseSpeed: Math.random()*.02+.005,
+      pulsePhase: Math.random()*Math.PI*2
+    });
+  }
+
+  var t = 0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    t += 0.016;
+
+    for(var i=0;i<stars.length;i++){
+      var s=stars[i];
+      s.x+=s.vx; s.y+=s.vy;
+      if(s.x<0)s.x=canvas.width;
+      if(s.x>canvas.width)s.x=0;
+      if(s.y<0)s.y=canvas.height;
+      if(s.y>canvas.height)s.y=0;
+    }
+
+    for(var i=0;i<stars.length;i++){
+      for(var j=i+1;j<stars.length;j++){
+        var dx=stars[i].x-stars[j].x, dy=stars[i].y-stars[j].y;
+        var dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<130){
+          var a=(1-dist/130)*.18;
+          ctx.beginPath();
+          ctx.moveTo(stars[i].x,stars[i].y);
+          ctx.lineTo(stars[j].x,stars[j].y);
+          ctx.strokeStyle='rgba(245,197,24,'+a+')';
+          ctx.lineWidth=0.6;
+          ctx.stroke();
+        }
+      }
+    }
+
+    for(var i=0;i<stars.length;i++){
+      var s=stars[i];
+      var pulse=Math.sin(t*s.pulseSpeed*60+s.pulsePhase)*.25+.75;
+      var a=s.alpha*pulse;
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,'+a+')';
+      ctx.fill();
+      if(s.r>1.5){
+        ctx.beginPath();
+        ctx.arc(s.x,s.y,s.r*2.5,0,Math.PI*2);
+        ctx.fillStyle='rgba(245,197,24,'+(a*.15)+')';
+        ctx.fill();
+      }
+    }
+
+    animId=requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* Password toggle */
+document.getElementById('togglePw').addEventListener('click',function(){
+  var inp=document.getElementById('password');
+  inp.type=inp.type==='password'?'text':'password';
+  this.textContent=inp.type==='password'?'\uD83D\uDC41':'\uD83D\uDE48';
+});
+
+/* Remember me */
+function toggleRemember(){
+  var cb=document.getElementById('cb');
+  var chk=document.getElementById('remember');
+  chk.checked=!chk.checked;
+  cb.classList.toggle('checked',chk.checked);
+}
+</script>
+
+<!-- Skeleton loader -->
 <style id="skeleton-style">
-#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;}
-#page-skeleton.active{display:flex;}
+#page-skeleton{display:none;position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;background:linear-gradient(145deg,#060e1f,#0a1628);}
+#page-skeleton.active{display:flex;align-items:center;justify-content:center;}
 .sk{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 75%);background-size:400% 100%;animation:sk-sh 1.3s ease infinite;}
 @keyframes sk-sh{0%{background-position:100% 50%}100%{background-position:-100% 50%}}
-/* sidebar ghost */
-.sk-side{width:210px;min-width:210px;height:100vh;background:#0A2540;border-right:1px solid rgba(255,255,255,.07);padding:20px 14px;display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
-.sk-logo{height:36px;border-radius:8px;}
-.sk-nav{height:36px;border-radius:8px;}
-/* main area */
-.sk-main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:18px;background:#121212;overflow:hidden;}
 </style>
-
-<div id="page-skeleton" style="background:linear-gradient(135deg,#0B1F3A,#050F1F);">
-<div style="width:100%;display:flex;align-items:center;justify-content:center;min-height:100vh;">
-  <div style="width:420px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:44px 40px;display:flex;flex-direction:column;gap:18px;align-items:center">
-    <div class="sk" style="width:68px;height:68px;border-radius:50%"></div>
-    <div class="sk" style="height:28px;width:160px;border-radius:8px"></div>
-    <div class="sk" style="height:2px;width:40px;border-radius:2px"></div>
-    <div class="sk" style="height:13px;width:100%;border-radius:4px"></div>
-    <div class="sk" style="height:13px;width:80%;border-radius:4px"></div>
-    <div class="sk" style="height:52px;width:100%;border-radius:10px;margin-top:8px"></div>
-    <div class="sk" style="height:52px;width:100%;border-radius:10px"></div>
-    <div class="sk" style="height:48px;width:100%;border-radius:10px;margin-top:6px"></div>
-  </div>
+<div id="page-skeleton">
+<div style="width:420px;background:rgba(10,18,40,.72);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:40px;display:flex;flex-direction:column;gap:18px;align-items:center">
+  <div class="sk" style="width:44px;height:44px;border-radius:12px"></div>
+  <div class="sk" style="height:26px;width:160px;border-radius:8px"></div>
+  <div class="sk" style="height:13px;width:100%;border-radius:4px"></div>
+  <div class="sk" style="height:48px;width:100%;border-radius:12px;margin-top:8px"></div>
+  <div class="sk" style="height:48px;width:100%;border-radius:12px"></div>
+  <div class="sk" style="height:48px;width:100%;border-radius:10px;margin-top:4px"></div>
 </div>
 </div>
-
 <script id="skeleton-js">
 (function(){
   var sk=document.getElementById('page-skeleton');
